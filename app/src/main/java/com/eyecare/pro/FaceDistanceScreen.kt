@@ -40,7 +40,7 @@ import java.util.concurrent.Executors
 import kotlin.math.abs
 
 @Composable
-fun FaceDistanceScreen() {
+fun FaceDistanceScreen(onEstimate: (Float) -> Unit = {}) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
     var permissionGranted by remember {
@@ -111,9 +111,11 @@ fun FaceDistanceScreen() {
                                                 val referencePx = calibratedEyeDistancePx
                                                 val referenceCm = calibratedDistanceCm
                                                 if (referencePx != null && referenceCm != null) {
-                                                    estimatedDistanceCm = FaceDistanceEstimator.estimateCentimeters(
+                                                    val estimate = FaceDistanceEstimator.estimateCentimeters(
                                                         measured, referencePx, referenceCm
                                                     )
+                                                    estimatedDistanceCm = estimate
+                                                    estimate?.let(onEstimate)
                                                 }
                                             }
                                         }
