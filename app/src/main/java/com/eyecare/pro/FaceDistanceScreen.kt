@@ -110,8 +110,10 @@ fun FaceDistanceScreen() {
                                                 eyeDistancePx = measured
                                                 val referencePx = calibratedEyeDistancePx
                                                 val referenceCm = calibratedDistanceCm
-                                                if (referencePx != null && referenceCm != null && referenceCm > 0f) {
-                                                    estimatedDistanceCm = referenceCm * referencePx / measured
+                                                if (referencePx != null && referenceCm != null) {
+                                                    estimatedDistanceCm = FaceDistanceEstimator.estimateCentimeters(
+                                                        measured, referencePx, referenceCm
+                                                    )
                                                 }
                                             }
                                         }
