@@ -11,12 +11,14 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
@@ -31,6 +33,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import java.util.Locale
+
+private enum class AppPage { HOME, ENVIRONMENT, ISHIHARA, CFF, FACE }
 
 private data class LightPresentation(val title: String, val advice: String, val color: Color)
 
@@ -63,11 +67,10 @@ class MainActivity : ComponentActivity(), SensorEventListener {
         sensorManager = getSystemService(Context.SENSOR_SERVICE) as SensorManager
         lightSensor = sensorManager.getDefaultSensor(Sensor.TYPE_LIGHT)
         sensorAvailable = lightSensor != null
-
         setContent {
             MaterialTheme {
                 Surface(modifier = Modifier.fillMaxSize()) {
-                    EnvironmentScreen(lux = currentLux, sensorAvailable = sensorAvailable)
+                    EyeCareApp(lux = currentLux, sensorAvailable = sensorAvailable)
                 }
             }
         }
@@ -75,9 +78,7 @@ class MainActivity : ComponentActivity(), SensorEventListener {
 
     override fun onResume() {
         super.onResume()
-        lightSensor?.let {
-            sensorManager.registerListener(this, it, SensorManager.SENSOR_DELAY_NORMAL)
-        }
+        lightSensor?.let { sensorManager.registerListener(this, it, SensorManager.SENSOR_DELAY_NORMAL) }
     }
 
     override fun onPause() {
@@ -106,18 +107,61 @@ class MainActivity : ComponentActivity(), SensorEventListener {
 }
 
 @Composable
-private fun EnvironmentScreen(lux: Float?, sensorAvailable: Boolean) {
-    val presentation = lux?.let { LightConditionEvaluator.evaluate(it).presentation() }
-
+private fun EyeCareApp(lux: Float?, sensorAvailable: Boolean) {
+    var page by androidx.compose.runtime.remember { mutableStateOf(AppPage.HOME) }
     Column(
-        modifier = Modifier.fillMaxSize().padding(24.dp),
-        verticalArrangement = Arrangement.Center,
-        horizontalAlignment = Alignment.Start
+        modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(20.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         Text("EyeCare Pro", style = MaterialTheme.typography.headlineLarge)
-        Text("Pemeriksaan lingkungan", style = MaterialTheme.typography.titleMedium)
-        Spacer(Modifier.height(24.dp))
+        Text("Edukasi dan skrining awal penglihatan", style = MaterialTheme.typography.titleMedium)
+        if (page != AppPage.HOME) {
+            Button(onClick = { page = AppPage.HOME }) { Text("Kembali ke beranda") }
+        }
+        when (page) {
+            AppPage.HOME -> {
+                Text("Pilih modul pemeriksaan", style = MaterialTheme.typography.titleLarge)
+                HomeModuleButton("Pemeriksaan pencahayaan") { page = AppPage.ENVIRONMENT }
+                HomeModuleButton("Tes warna Ishihara") { page = AppPage.ISHIHARA }
+                HomeModuleButton("Eksperimen kedip CFF") { page = AppPage.CFF }
+                HomeModuleButton("Estimasi jarak wajah") { page = AppPage.FACE }
+                Spacer(Modifier.height(8.dp))
+                Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)) {
+                    Column(Modifier.padding(16.dp)) {
+                        Text("Pengingat kesehatan mata", style = MaterialTheme.typography.titleMedium)
+                        Text("Gunakan aturan 20-20-20: setiap 20 menit, lihat objek sekitar 20 kaki (6 meter) selama 20 detik.")
+                    }
+                }
+                Text(
+                    "Aplikasi ini bukan alat diagnosis dan tidak menggantikan pemeriksaan dokter mata.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.error
+                )
+            }
+            AppPage.ENVIRONMENT -> EnvironmentScreen(lux, sensorAvailable)
+            AppPage.ISHIHARA -> IshiharaScreen()
+            AppPage.CFF -> CffScreen()
+            AppPage.FACE -> FaceDistanceScreen()
+        }
+    }
+}
 
+@Composable
+private fun HomeModuleButton(label: String, onClick: () -> Unit) {
+    Button(onClick = onClick, modifier = Modifier.fillMaxWidth()) {
+        Text(label)
+    }
+}
+
+@Composable
+private fun EnvironmentScreen(lux: Float?, sensorAvailable: Boolean) {
+    val presentation = lux?.let { LightConditionEvaluator.evaluate(it).presentation() }
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+        horizontalAlignment = Alignment.Start
+    ) {
+        Text("Pemeriksaan lingkungan", style = MaterialTheme.typography.headlineSmall)
         Card(
             modifier = Modifier.fillMaxWidth(),
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
@@ -130,27 +174,22 @@ private fun EnvironmentScreen(lux: Float?, sensorAvailable: Boolean) {
                 } else if (lux == null) {
                     Text("Menunggu pembacaan sensor…")
                 } else {
-                    Row(verticalAlignment = Alignment.Bottom) {
-                        Text(String.format(Locale.getDefault(), "%.0f", lux), style = MaterialTheme.typography.displayLarge)
-                        Text(" lux", style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(bottom = 8.dp))
-                    }
-                    Spacer(Modifier.height(12.dp))
+                    Text(
+                        "${String.format(Locale.getDefault(), "%.0f", lux)} lux",
+                        style = MaterialTheme.typography.displayMedium
+                    )
                     Text(presentation!!.title, style = MaterialTheme.typography.titleLarge, color = presentation.color)
-                    Text(presentation.advice, modifier = Modifier.padding(top = 6.dp))
+                    Text(presentation.advice)
                 }
             }
         }
-
-        Spacer(Modifier.height(20.dp))
-        Text("Rentang operasional aplikasi: 100–400 lux.", style = MaterialTheme.typography.bodyMedium)
+        Text("Rentang operasional aplikasi: 100–400 lux.")
         Text(
-            "Saat cahaya berada dalam rentang tersebut, kecerahan layar aplikasi diatur ke 80%. Pengaturan ini hanya berlaku selama aplikasi aktif.",
-            modifier = Modifier.padding(top = 8.dp),
+            "Saat cahaya berada pada rentang tersebut, kecerahan layar aplikasi diatur ke 80%. Pengaturan ini hanya berlaku selama aplikasi aktif.",
             style = MaterialTheme.typography.bodySmall
         )
         Text(
-            "Catatan: rentang ini adalah ambang operasional aplikasi, bukan standar medis. Sensor dan hasilnya dapat berbeda antarperangkat.",
-            modifier = Modifier.padding(top = 16.dp),
+            "Rentang ini adalah ambang operasional aplikasi, bukan standar medis. Sensor dan hasilnya dapat berbeda antarperangkat.",
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
