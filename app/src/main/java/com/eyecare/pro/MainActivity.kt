@@ -32,10 +32,24 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import java.util.Locale
 
-private enum class LightStatus(val title: String, val advice: String, val color: Color) {
-    TOO_DARK("Terlalu redup", "Pindah ke tempat yang lebih terang sebelum melakukan pemeriksaan.", Color(0xFFC62828)),
-    IDEAL("Pencahayaan sesuai", "Kondisi cahaya berada pada rentang operasional aplikasi.", Color(0xFF2E7D32)),
-    TOO_BRIGHT("Terlalu terang", "Kurangi cahaya langsung atau pindah ke tempat yang lebih teduh.", Color(0xFFEF6C00))
+private data class LightPresentation(val title: String, val advice: String, val color: Color)
+
+private fun LightCondition.presentation(): LightPresentation = when (this) {
+    LightCondition.TOO_DARK -> LightPresentation(
+        "Terlalu redup",
+        "Pindah ke tempat yang lebih terang sebelum melakukan pemeriksaan.",
+        Color(0xFFC62828)
+    )
+    LightCondition.IDEAL -> LightPresentation(
+        "Pencahayaan sesuai",
+        "Kondisi cahaya berada pada rentang operasional aplikasi.",
+        Color(0xFF2E7D32)
+    )
+    LightCondition.TOO_BRIGHT -> LightPresentation(
+        "Terlalu terang",
+        "Kurangi cahaya langsung atau pindah ke tempat yang lebih teduh.",
+        Color(0xFFEF6C00)
+    )
 }
 
 class MainActivity : ComponentActivity(), SensorEventListener {
@@ -68,19 +82,24 @@ class MainActivity : ComponentActivity(), SensorEventListener {
 
     override fun onPause() {
         sensorManager.unregisterListener(this)
-        window.attributes = window.attributes.apply { screenBrightness = WindowManager.LayoutParams.BRIGHTNESS_OVERRIDE_NONE }
+        window.attributes = window.attributes.apply {
+            screenBrightness = WindowManager.LayoutParams.BRIGHTNESS_OVERRIDE_NONE
+        }
         super.onPause()
     }
 
     override fun onSensorChanged(event: SensorEvent) {
         if (event.sensor.type != Sensor.TYPE_LIGHT || event.values.isEmpty()) return
-        val lux = event.values[0].coerceAtLeast(0f)
-        currentLux = lux
-        if (lux in 100f..400f) {
-            window.attributes = window.attributes.apply { screenBrightness = 0.8f }
+        val lux = event.values[0]
+        if (!lux.isFinite()) return
+        val safeLux = lux.coerceAtLeast(0f)
+        currentLux = safeLux
+        val brightness = if (LightConditionEvaluator.evaluate(safeLux) == LightCondition.IDEAL) {
+            0.8f
         } else {
-            window.attributes = window.attributes.apply { screenBrightness = WindowManager.LayoutParams.BRIGHTNESS_OVERRIDE_NONE }
+            WindowManager.LayoutParams.BRIGHTNESS_OVERRIDE_NONE
         }
+        window.attributes = window.attributes.apply { screenBrightness = brightness }
     }
 
     override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) = Unit
@@ -88,13 +107,7 @@ class MainActivity : ComponentActivity(), SensorEventListener {
 
 @Composable
 private fun EnvironmentScreen(lux: Float?, sensorAvailable: Boolean) {
-    val status = lux?.let {
-        when {
-            it < 100f -> LightStatus.TOO_DARK
-            it <= 400f -> LightStatus.IDEAL
-            else -> LightStatus.TOO_BRIGHT
-        }
-    }
+    val presentation = lux?.let { LightConditionEvaluator.evaluate(it).presentation() }
 
     Column(
         modifier = Modifier.fillMaxSize().padding(24.dp),
@@ -122,8 +135,8 @@ private fun EnvironmentScreen(lux: Float?, sensorAvailable: Boolean) {
                         Text(" lux", style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(bottom = 8.dp))
                     }
                     Spacer(Modifier.height(12.dp))
-                    Text(status!!.title, style = MaterialTheme.typography.titleLarge, color = status.color)
-                    Text(status.advice, modifier = Modifier.padding(top = 6.dp))
+                    Text(presentation!!.title, style = MaterialTheme.typography.titleLarge, color = presentation.color)
+                    Text(presentation.advice, modifier = Modifier.padding(top = 6.dp))
                 }
             }
         }
