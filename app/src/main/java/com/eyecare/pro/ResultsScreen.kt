@@ -12,7 +12,7 @@ import androidx.compose.ui.unit.dp
 import java.util.Locale
 
 @Composable
-fun ResultsScreen(lux: Float?) {
+fun ResultsScreen(lux: Float?, lastCffHz: Float?, lastDistanceCm: Float?) {
     Column(
         modifier = Modifier.padding(20.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
@@ -40,6 +40,9 @@ fun ResultsScreen(lux: Float?) {
             })
             Text(advice)
         }
+        Text("Catatan pengamatan", style = MaterialTheme.typography.titleMedium)
+        Text(lastCffHz?.let { "Pengamatan CFF terakhir: ${String.format(Locale.getDefault(), "%.0f", it)} Hz (non-klinis)." } ?: "Pengamatan CFF: belum dicatat.")
+        Text(lastDistanceCm?.let { "Estimasi jarak wajah terakhir: ${String.format(Locale.getDefault(), "%.1f", it)} cm." } ?: "Estimasi jarak wajah: belum tersedia; lakukan kalibrasi kamera.")
         Text("Status modul", style = MaterialTheme.typography.titleMedium)
         Text("• Pemeriksaan cahaya: aktif jika perangkat memiliki sensor cahaya.")
         Text("• Ishihara: menunggu pelat resmi berlisensi dan tervalidasi.")
