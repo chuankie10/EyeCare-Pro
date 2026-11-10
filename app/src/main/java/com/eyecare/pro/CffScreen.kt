@@ -26,7 +26,7 @@ import kotlinx.coroutines.delay
 import java.util.Locale
 
 @Composable
-fun CffScreen() {
+fun CffScreen(onResult: (Float) -> Unit = {}) {
     var frequency by remember { mutableFloatStateOf(12f) }
     var running by remember { mutableStateOf(false) }
     var flashOn by remember { mutableStateOf(false) }
@@ -64,7 +64,7 @@ fun CffScreen() {
         }
         Button(
             enabled = !running,
-            onClick = { reportedThreshold = frequency }
+            onClick = { reportedThreshold = frequency; onResult(frequency) }
         ) {
             Text("Catat frekuensi yang diamati")
         }
