@@ -109,6 +109,8 @@ class MainActivity : ComponentActivity(), SensorEventListener {
 @Composable
 private fun EyeCareApp(lux: Float?, sensorAvailable: Boolean) {
     var page by androidx.compose.runtime.remember { mutableStateOf(AppPage.HOME) }
+    var lastCffHz by androidx.compose.runtime.remember { mutableStateOf<Float?>(null) }
+    var lastDistanceCm by androidx.compose.runtime.remember { mutableStateOf<Float?>(null) }
     Column(
         modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(20.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
@@ -142,10 +144,10 @@ private fun EyeCareApp(lux: Float?, sensorAvailable: Boolean) {
             }
             AppPage.ENVIRONMENT -> EnvironmentScreen(lux, sensorAvailable)
             AppPage.ISHIHARA -> IshiharaScreen()
-            AppPage.CFF -> CffScreen()
-            AppPage.FACE -> FaceDistanceScreen()
+            AppPage.CFF -> CffScreen(onResult = { lastCffHz = it })
+            AppPage.FACE -> FaceDistanceScreen(onEstimate = { lastDistanceCm = it })
             AppPage.REMINDER -> ReminderScreen()
-            AppPage.RESULTS -> ResultsScreen(lux)
+            AppPage.RESULTS -> ResultsScreen(lux, lastCffHz, lastDistanceCm)
         }
     }
 }
