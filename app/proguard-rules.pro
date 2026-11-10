@@ -1,0 +1,1 @@
+# EyeCare Pro ProGuard rules
