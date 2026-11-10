@@ -51,6 +51,7 @@ fun FaceDistanceScreen() {
     }
     var eyeDistancePx by remember { mutableStateOf<Float?>(null) }
     var calibratedEyeDistancePx by remember { mutableStateOf<Float?>(null) }
+    var calibratedDistanceCm by remember { mutableStateOf<Float?>(null) }
     var distanceText by remember { mutableStateOf("40") }
     var estimatedDistanceCm by remember { mutableStateOf<Float?>(null) }
     var cameraError by remember { mutableStateOf<String?>(null) }
@@ -108,7 +109,7 @@ fun FaceDistanceScreen() {
                                             if (measured > 1f) {
                                                 eyeDistancePx = measured
                                                 val referencePx = calibratedEyeDistancePx
-                                                val referenceCm = distanceText.toFloatOrNull()
+                                                val referenceCm = calibratedDistanceCm
                                                 if (referencePx != null && referenceCm != null && referenceCm > 0f) {
                                                     estimatedDistanceCm = referenceCm * referencePx / measured
                                                 }
@@ -152,7 +153,8 @@ fun FaceDistanceScreen() {
                 enabled = eyeDistancePx != null && (distanceText.toFloatOrNull() ?: 0f) > 0f,
                 onClick = {
                     calibratedEyeDistancePx = eyeDistancePx
-                    estimatedDistanceCm = distanceText.toFloatOrNull()
+                    calibratedDistanceCm = distanceText.toFloatOrNull()
+                    estimatedDistanceCm = calibratedDistanceCm
                 }
             ) {
                 Text("Kalibrasi pada jarak ini")
