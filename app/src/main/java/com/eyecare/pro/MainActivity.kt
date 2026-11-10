@@ -34,7 +34,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import java.util.Locale
 
-private enum class AppPage { HOME, ENVIRONMENT, ISHIHARA, CFF, FACE, REMINDER }
+private enum class AppPage { HOME, ENVIRONMENT, ISHIHARA, CFF, FACE, REMINDER, RESULTS }
 
 private data class LightPresentation(val title: String, val advice: String, val color: Color)
 
@@ -126,6 +126,7 @@ private fun EyeCareApp(lux: Float?, sensorAvailable: Boolean) {
                 HomeModuleButton("Eksperimen kedip CFF") { page = AppPage.CFF }
                 HomeModuleButton("Estimasi jarak wajah") { page = AppPage.FACE }
                 HomeModuleButton("Pengingat 20-20-20") { page = AppPage.REMINDER }
+                HomeModuleButton("Ringkasan pemeriksaan") { page = AppPage.RESULTS }
                 Spacer(Modifier.height(8.dp))
                 Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)) {
                     Column(Modifier.padding(16.dp)) {
@@ -144,6 +145,7 @@ private fun EyeCareApp(lux: Float?, sensorAvailable: Boolean) {
             AppPage.CFF -> CffScreen()
             AppPage.FACE -> FaceDistanceScreen()
             AppPage.REMINDER -> ReminderScreen()
+            AppPage.RESULTS -> ResultsScreen(lux)
         }
     }
 }
