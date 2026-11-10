@@ -30,11 +30,13 @@ private const val REMINDER_WORK_NAME = "eyecare-20-20-20-reminder"
 @Composable
 fun ReminderScreen() {
     val context = LocalContext.current
-    var scheduled by remember { mutableStateOf(false) }
+    val preferences = remember { context.getSharedPreferences("eyecare_settings", android.content.Context.MODE_PRIVATE) }
+    var scheduled by remember { mutableStateOf(preferences.getBoolean("reminder_enabled", false)) }
     val permissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
         if (granted) {
             scheduleEyeBreakReminder(context)
             scheduled = true
+            preferences.edit().putBoolean("reminder_enabled", true).apply()
         }
     }
 
@@ -53,6 +55,7 @@ fun ReminderScreen() {
             if (hasPermission) {
                 scheduleEyeBreakReminder(context)
                 scheduled = true
+                preferences.edit().putBoolean("reminder_enabled", true).apply()
             } else {
                 permissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
             }
@@ -62,6 +65,7 @@ fun ReminderScreen() {
         Button(onClick = {
             WorkManager.getInstance(context).cancelUniqueWork(REMINDER_WORK_NAME)
             scheduled = false
+            preferences.edit().putBoolean("reminder_enabled", false).apply()
         }) {
             Text("Nonaktifkan pengingat")
         }
