@@ -13,23 +13,24 @@ Aplikasi Android untuk edukasi dan skrining awal penglihatan. **Aplikasi ini buk
 - Minimum Android: 7.0 (API 24)
 - Bahasa: Kotlin
 - UI: Jetpack Compose
-- Arsitektur: Clean Architecture + MVVM
+- Arsitektur target: Clean Architecture + MVVM
 
-## Fitur yang direncanakan
-1. Pemeriksaan pencahayaan sekitar menggunakan sensor cahaya.
-2. Modul tes Ishihara yang hanya aktif jika aset pelat tervalidasi tersedia.
-3. Eksperimen Critical Flicker Fusion (CFF) dengan batasan perangkat dijelaskan kepada pengguna.
-4. Estimasi jarak wajah berbasis deteksi wajah dengan penjelasan kebutuhan kalibrasi.
-5. Dashboard hasil edukatif dan pengingat aturan 20-20-20.
+## Status implementasi
+- [x] Kerangka aplikasi Android dan pipeline CI.
+- [x] Pemeriksaan cahaya sekitar melalui `Sensor.TYPE_LIGHT`.
+- [ ] Tes Ishihara dengan aset tervalidasi dan berlisensi.
+- [ ] Eksperimen CFF dengan batasan perangkat yang dijelaskan.
+- [ ] Estimasi jarak wajah yang memerlukan kalibrasi.
+- [ ] Dashboard hasil dan pengingat 20-20-20.
+- [ ] Build CI dan uji perangkat nyata.
 
-## Build
-Gunakan Android Studio dan JDK 17. Jalankan:
+## Build lokal
+Gunakan JDK 17, Android SDK 36, dan Gradle 8.13. Dari direktori repository jalankan:
 ```bash
-./gradlew testDebugUnitTest
-./gradlew assembleDebug
+gradle testDebugUnitTest
+gradle assembleDebug
 ```
+APK debug dihasilkan pada `app/build/outputs/apk/debug/app-debug.apk`.
 
-APK debug akan berada di `app/build/outputs/apk/debug/app-debug.apk`.
-
-## Status
-Dokumentasi awal repositori. Implementasi fitur, pengujian, dan validasi perangkat masih perlu dilakukan sebelum rilis.
+## Peringatan
+Fitur skrining bersifat edukatif dan tidak boleh dipakai untuk menetapkan diagnosis atau menggantikan pemeriksaan profesional.
