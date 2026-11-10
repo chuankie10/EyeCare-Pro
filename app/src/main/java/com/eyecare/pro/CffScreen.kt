@@ -31,7 +31,7 @@ fun CffScreen() {
     var running by remember { mutableStateOf(false) }
     var flashOn by remember { mutableStateOf(false) }
     var reportedThreshold by remember { mutableFloatStateOf(0f) }
-    val halfCycleMs = (500f / frequency).toLong().coerceAtLeast(16L)
+    val halfCycleMs = CffStimulusTiming.halfCycleMillis(frequency)
 
     LaunchedEffect(running, halfCycleMs) {
         if (!running) {
