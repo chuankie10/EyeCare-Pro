@@ -38,22 +38,10 @@ private enum class AppPage { HOME, ENVIRONMENT, ISHIHARA, CFF, FACE, REMINDER, R
 
 private data class LightPresentation(val title: String, val advice: String, val color: Color)
 
-private fun LightCondition.presentation(lux: Float): LightPresentation = when (this) {
-    LightCondition.TOO_DARK -> LightPresentation(
-        "Cahaya rendah",
-        if (lux < 50f) "Nyalakan lampu ruangan, buka tirai pada siang hari, atau pindahkan lampu meja agar area baca ikut terang. Hindari membaca hanya dengan cahaya layar." else "Tambahkan lampu ruangan atau lampu meja yang menyinari buku/meja, bukan langsung ke mata. Ukur kembali setelah penyesuaian.",
-        Color(0xFFC62828)
-    )
-    LightCondition.IDEAL -> LightPresentation(
-        "Dalam rentang operasional aplikasi",
-        "Untuk membaca/menulis di meja, acuan tempat kerja sering berada sekitar 500 lux pada bidang tugas; pekerjaan dominan layar dapat memerlukan sekitar 300 lux pencahayaan umum. Pastikan tidak ada silau atau bayangan.",
-        Color(0xFF2E7D32)
-    )
-    LightCondition.TOO_BRIGHT -> LightPresentation(
-        "Cahaya tinggi",
-        "Kurangi lampu yang mengarah langsung ke mata atau permukaan layar, tutup sebagian tirai, ubah posisi meja, atau gunakan diffuser. Jangan menatap matahari atau sumber cahaya kuat.",
-        Color(0xFFEF6C00)
-    )
+private fun LightCondition.presentation(lux: Float, task: LightTask): LightPresentation = when (this) {
+    LightCondition.TOO_DARK -> LightPresentation("Di bawah panduan aktivitas", "Tambah pencahayaan umum atau lampu meja yang diarahkan ke bidang kerja. Buka tirai pada siang hari. Hindari lampu yang hanya menyinari layar sementara buku/meja tetap gelap.", Color(0xFFC62828))
+    LightCondition.IDEAL -> LightPresentation("Dalam rentang panduan aktivitas", "Pembacaan sensor berada pada rentang panduan untuk " + task.label.lowercase(Locale.getDefault()) + ". Tetap perhatikan kenyamanan, bayangan, kontras, dan pantulan; angka lux saja tidak menjamin pencahayaan baik.", Color(0xFF2E7D32))
+    LightCondition.TOO_BRIGHT -> LightPresentation("Di atas panduan aktivitas", "Kurangi lampu langsung, gunakan diffuser atau tirai, ubah posisi meja, dan hindari pantulan pada layar. Jangan menatap matahari atau sumber cahaya kuat.", Color(0xFFEF6C00))
 }
 
 class MainActivity : ComponentActivity(), SensorEventListener {
@@ -111,6 +99,7 @@ private fun EyeCareApp(lux: Float?, sensorAvailable: Boolean) {
     var page by androidx.compose.runtime.remember { mutableStateOf(AppPage.HOME) }
     var lastCffHz by androidx.compose.runtime.remember { mutableStateOf<Float?>(null) }
     var lastDistanceCm by androidx.compose.runtime.remember { mutableStateOf<Float?>(null) }
+    var lightTask by androidx.compose.runtime.remember { mutableStateOf(LightTask.SCREEN_WORK) }
     Column(
         modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(20.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
@@ -142,12 +131,12 @@ private fun EyeCareApp(lux: Float?, sensorAvailable: Boolean) {
                     color = MaterialTheme.colorScheme.error
                 )
             }
-            AppPage.ENVIRONMENT -> EnvironmentScreen(lux, sensorAvailable)
+            AppPage.ENVIRONMENT -> EnvironmentScreen(lux, sensorAvailable, lightTask) { lightTask = it }
             AppPage.ISHIHARA -> IshiharaScreen()
             AppPage.CFF -> CffScreen(onResult = { lastCffHz = it })
             AppPage.FACE -> FaceDistanceScreen(onEstimate = { lastDistanceCm = it })
             AppPage.REMINDER -> ReminderScreen()
-            AppPage.RESULTS -> ResultsScreen(lux, lastCffHz, lastDistanceCm)
+            AppPage.RESULTS -> ResultsScreen(lux, lastCffHz, lastDistanceCm, lightTask)
         }
     }
 }
@@ -160,14 +149,17 @@ private fun HomeModuleButton(label: String, onClick: () -> Unit) {
 }
 
 @Composable
-private fun EnvironmentScreen(lux: Float?, sensorAvailable: Boolean) {
-    val presentation = lux?.let { LightConditionEvaluator.evaluate(it).presentation(it) }
+private fun EnvironmentScreen(lux: Float?, sensorAvailable: Boolean, task: LightTask, onTaskChange: (LightTask) -> Unit) {
+    val presentation = lux?.let { LightConditionEvaluator.evaluate(it, task).presentation(it, task) }
     Column(
         modifier = Modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(12.dp),
         horizontalAlignment = Alignment.Start
     ) {
         Text("Pemeriksaan lingkungan", style = MaterialTheme.typography.headlineSmall)
+        Text("Pilih aktivitas yang sedang Anda lakukan", style = MaterialTheme.typography.titleMedium)
+        Button(onClick = { onTaskChange(LightTask.SCREEN_WORK) }, modifier = Modifier.fillMaxWidth()) { Text(if (task == LightTask.SCREEN_WORK) "✓ Pekerjaan dominan layar (300–500 lux)" else "Pekerjaan dominan layar (300–500 lux)") }
+        Button(onClick = { onTaskChange(LightTask.READING) }, modifier = Modifier.fillMaxWidth()) { Text(if (task == LightTask.READING) "✓ Membaca/menulis (500–750 lux)" else "Membaca/menulis (500–750 lux)") }
         Card(
             modifier = Modifier.fillMaxWidth(),
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
@@ -189,10 +181,10 @@ private fun EnvironmentScreen(lux: Float?, sensorAvailable: Boolean) {
                 }
             }
         }
-        Text("Acuan pencahayaan berdasarkan aktivitas", style = MaterialTheme.typography.titleMedium)
-        Text("• Pekerjaan dominan layar: sekitar 300 lux pencahayaan umum sebagai salah satu panduan tempat kerja.\n• Membaca/menulis di meja: sekitar 500 lux pada bidang tugas.\nAngka ini adalah acuan pencahayaan tempat kerja, bukan ambang diagnosis atau jaminan kesehatan mata.")
+        Text("Rentang panduan yang dipilih: " + task.lowerLux.toInt() + "–" + task.upperLux.toInt() + " lux", style = MaterialTheme.typography.titleMedium)
+        Text("Rentang ini merupakan panduan operasional edukatif untuk aktivitas, bukan standar medis atau batas diagnosis. Kebutuhan aktual bergantung pada usia, ukuran detail, kontras, silau, dan standar tempat kerja setempat.")
         Text("Cara memperbaiki hasil", style = MaterialTheme.typography.titleMedium)
         Text("Ukur di area kerja setinggi permukaan meja. Jika rendah: nyalakan lampu ruangan, buka tirai, atau arahkan lampu meja ke buku/meja. Jika tinggi atau silau: ubah arah lampu, gunakan diffuser/tirai, dan hindari pantulan pada layar.")
-        Text("Catatan: sensor ponsel mengukur cahaya di dekat sensor, bukan selalu pencahayaan tepat di atas meja. Rentang 100–400 lux sebelumnya hanya ambang operasional aplikasi. ISO/CIE 8995-1:2025 menetapkan kebutuhan pencahayaan menurut jenis aktivitas dan kualitas pencahayaan; tidak ada satu angka lux medis universal. Kecerahan layar 80% tidak menambah lux ruangan.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text("Catatan: sensor ponsel mengukur cahaya di dekat sensor, bukan selalu pencahayaan tepat di atas meja. Rentang mengikuti pilihan aktivitas di aplikasi dan hanya panduan operasional edukatif. ISO/CIE 8995-1:2025 menetapkan kebutuhan pencahayaan menurut jenis aktivitas dan kualitas pencahayaan; tidak ada satu angka lux medis universal. Kecerahan layar 80% tidak menambah lux ruangan.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
