@@ -184,6 +184,9 @@ fun FaceDistanceScreen(onEstimate: (Float) -> Unit = {}) {
             cameraError?.let { Text(it, color = MaterialTheme.colorScheme.error) }
         }
 
+        Text("Panduan penggunaan yang benar", style = MaterialTheme.typography.titleMedium)
+        Text("Letakkan ponsel stabil setinggi mata, gunakan kamera depan tanpa zoom, wajah menghadap lurus, dan pencahayaan cukup. Ukur jarak dari kamera depan ke bagian depan wajah dengan penggaris. Contoh 40 cm hanya titik awal ergonomi yang umum dipakai, bukan batas medis wajib untuk semua orang. Sesuaikan jarak agar teks terbaca tanpa membungkuk atau menyipit.")
+        Text("Jika estimasi terus berubah, itu dapat terjadi karena kepala bergerak, wajah miring, landmark mata bergeser, atau pencahayaan. Angka referensi kalibrasi tetap terkunci; estimasi real-time memang berubah mengikuti gerakan. Ulangi kalibrasi jika ponsel, zoom, orientasi, atau posisi kamera berubah.")
         Spacer(Modifier.height(4.dp))
         Text(
             "Batasan: hasil ini hanya perkiraan relatif berdasarkan perubahan jarak antarmata pada gambar kamera. Kalibrasi harus dilakukan ulang jika posisi, zoom, kamera, atau orientasi berubah. Ini bukan alat ukur klinis atau penentu gangguan mata.",
