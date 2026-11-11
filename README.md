@@ -37,6 +37,8 @@ Modul menampilkan peringatan kedipan dan meminta pengguna mengonfirmasi telah me
 - Java/JVM: 17
 
 ## Versi build dan dependency
+
+Versi aplikasi pengujian pada perubahan ini: **0.2.0 (versionCode 2)**.
 Versi plugin dan library dideklarasikan eksplisit di \`build.gradle.kts\`, \`app/build.gradle.kts\`, dan workflow CI. Build saat ini memakai Android Gradle Plugin 8.13.2, Kotlin 2.2.21, Gradle 8.13, JDK 17, dan compile/target SDK 36. Minimum SDK tetap 24.
 
 ## Build lokal
