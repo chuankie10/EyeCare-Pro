@@ -93,7 +93,9 @@ fun CffScreen(onResult: (Float) -> Unit = {}) {
             })
         }
         Text("Cara memahami hasil", style = MaterialTheme.typography.titleMedium)
-        Text("Jika masih berkedip pada frekuensi yang lebih tinggi, itu hanya berarti Anda masih melihat kedipan pada kondisi layar dan saat itu. Jika tampak menyatu pada frekuensi yang lebih rendah, catat sebagai pengamatan pribadi—bukan bukti gangguan. Tidak ada target Hz universal yang dapat dipakai aplikasi ponsel untuk menyatakan mata normal atau sakit.")
+        Text("Frekuensi lebih tinggi berarti layar berganti terang–gelap lebih cepat; bukan berarti mata Anda bekerja lebih cepat. Jika pada frekuensi yang makin tinggi kedipan masih terlihat, itu hanya laporan persepsi pada perangkat dan kondisi saat itu. Jika kedipan tampak menyatu pada frekuensi lebih rendah, itu juga bukan bukti gangguan. Jika bidang terasa berhenti berkedip, biasanya Anda sedang mencapai efek penyatuan persepsi pada stimulus tersebut—bukan berarti fungsi mata berhenti atau ada penyakit. Tidak ada target Hz universal untuk menyatakan mata normal atau sakit.")
+        Text("Tindak lanjut yang aman", style = MaterialTheme.typography.titleMedium)
+        Text("Jika mata lelah setelah layar, hentikan tes, istirahat, berkedip secara sadar, dan gunakan aturan 20-20-20. Jangan mencoba terapi kilatan atau mengejar angka CFF tertentu. Bila keluhan menetap, penglihatan buram/ganda, nyeri, atau sakit kepala berulang, jadwalkan pemeriksaan dokter mata.")
         Text("Ponsel tidak dapat menjamin frekuensi kilatan aktual: refresh rate, frame pacing Android, PWM, kecerahan, dan panel layar memengaruhi stimulus. Karena itu angka ini tidak boleh dipakai untuk diagnosis, terapi, atau keputusan rujukan sendirian. Bila ada kilatan cahaya baru di penglihatan, banyak floaters baru, bayangan seperti tirai, atau kehilangan penglihatan mendadak, cari pertolongan mata segera; jangan mengulang tes.")
     }
 }
