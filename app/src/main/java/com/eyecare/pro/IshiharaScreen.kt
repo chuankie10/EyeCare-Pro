@@ -47,7 +47,7 @@ private val demoPlates = listOf(
  * happen on Dispatchers.Default, not inside Canvas drawing.
  */
 @Composable
-private fun DemoColorPlate(
+private fun RealisticIshiharaPlate(
     plate: DemoPlate,
     palette: IshiharaPlateGenerator.Palette,
     modifier: Modifier = Modifier
@@ -60,7 +60,8 @@ private fun DemoColorPlate(
         canvasSize,
         plate.number,
         plate.seed,
-        palette
+        palette,
+        density
     ) {
         if (canvasSize.width > 0 && canvasSize.height > 0) {
             value = withContext(Dispatchers.Default) {
@@ -169,7 +170,7 @@ fun IshiharaScreen() {
                 "Pelat simulasi ${currentIndex + 1} dari ${demoPlates.size}",
                 style = MaterialTheme.typography.titleMedium
             )
-            DemoColorPlate(
+            RealisticIshiharaPlate(
                 plate = current,
                 palette = palette,
                 modifier = Modifier.padding(horizontal = 12.dp)
