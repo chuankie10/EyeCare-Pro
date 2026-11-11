@@ -12,7 +12,7 @@ import androidx.compose.ui.unit.dp
 import java.util.Locale
 
 @Composable
-fun ResultsScreen(lux: Float?, lastCffHz: Float?, lastDistanceCm: Float?) {
+fun ResultsScreen(lux: Float?, lastCffHz: Float?, lastDistanceCm: Float?, task: LightTask = LightTask.SCREEN_WORK) {
     Column(
         modifier = Modifier.padding(20.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
@@ -21,17 +21,18 @@ fun ResultsScreen(lux: Float?, lastCffHz: Float?, lastDistanceCm: Float?) {
         if (lux == null) {
             Text("Belum ada pembacaan cahaya. Buka modul Pemeriksaan pencahayaan dan tunggu sensor memberikan nilai.")
         } else {
-            val condition = LightConditionEvaluator.evaluate(lux)
+            val condition = LightConditionEvaluator.evaluate(lux, task)
             val status = when (condition) {
                 LightCondition.TOO_DARK -> "Cahaya terlalu redup"
-                LightCondition.IDEAL -> "Cahaya berada dalam rentang operasional"
+                LightCondition.IDEAL -> "Cahaya berada dalam rentang panduan aktivitas"
                 LightCondition.TOO_BRIGHT -> "Cahaya terlalu terang"
             }
             val advice = when (condition) {
-                LightCondition.TOO_DARK -> "Tambahkan pencahayaan ruangan dan hindari melakukan tes pada kondisi gelap."
-                LightCondition.IDEAL -> "Kondisi pencahayaan memenuhi ambang operasional aplikasi. Lanjutkan hanya jika Anda merasa nyaman."
+                LightCondition.TOO_DARK -> "Tambahkan lampu ruangan atau lampu meja yang menyinari bidang kerja."
+                LightCondition.IDEAL -> "Pembacaan berada pada rentang panduan untuk " + task.label.lowercase(Locale.getDefault()) + ". Tetap perhatikan silau dan bayangan."
                 LightCondition.TOO_BRIGHT -> "Kurangi cahaya langsung, silau, atau pantulan layar."
             }
+            Text("Aktivitas: " + task.label + " (" + task.lowerLux.toInt() + "–" + task.upperLux.toInt() + " lux)")
             Text("Pembacaan terakhir: ${String.format(Locale.getDefault(), "%.0f", lux)} lux", style = MaterialTheme.typography.titleMedium)
             Text(status, style = MaterialTheme.typography.titleLarge, color = when (condition) {
                 LightCondition.TOO_DARK -> Color(0xFFC62828)
