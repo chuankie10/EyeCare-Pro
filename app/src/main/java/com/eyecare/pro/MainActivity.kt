@@ -83,7 +83,7 @@ class MainActivity : ComponentActivity(), SensorEventListener {
         if (!lux.isFinite()) return
         val safeLux = lux.coerceAtLeast(0f)
         currentLux = safeLux
-        val brightness = if (LightConditionEvaluator.evaluate(safeLux) == LightCondition.IDEAL) {
+        val brightness = if (safeLux in 100f..400f) {
             0.8f
         } else {
             WindowManager.LayoutParams.BRIGHTNESS_OVERRIDE_NONE
