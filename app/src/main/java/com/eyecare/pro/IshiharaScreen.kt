@@ -23,6 +23,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.drawscope.clipPath
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
@@ -51,6 +53,7 @@ private fun DemoColorPlate(
     modifier: Modifier = Modifier
 ) {
     var canvasSize by remember { mutableStateOf(IntSize.Zero) }
+    val density = LocalDensity.current.density
 
     val dots by produceState(
         initialValue = emptyList<IshiharaPlateGenerator.Dot>(),
@@ -64,7 +67,7 @@ private fun DemoColorPlate(
                 IshiharaPlateGenerator.generate(
                     width = canvasSize.width,
                     height = canvasSize.height,
-                    density = androidx.compose.ui.platform.LocalDensity.current.density,
+                    density = density,
                     number = plate.number,
                     palette = palette,
                     seed = plate.seed
@@ -100,16 +103,15 @@ private fun DemoColorPlate(
             )
         }
 
-        drawContext.canvas.save()
-        drawContext.canvas.clipPath(clip)
-        dots.forEach { dot ->
-            drawCircle(
-                color = Color(dot.color),
-                radius = dot.radius,
-                center = androidx.compose.ui.geometry.Offset(dot.x, dot.y)
-            )
+        clipPath(clip) {
+            dots.forEach { dot ->
+                drawCircle(
+                    color = Color(dot.color),
+                    radius = dot.radius,
+                    center = androidx.compose.ui.geometry.Offset(dot.x, dot.y)
+                )
+            }
         }
-        drawContext.canvas.restore()
 
         drawCircle(
             color = Color(0xFF536044),
