@@ -38,20 +38,20 @@ private enum class AppPage { HOME, ENVIRONMENT, ISHIHARA, CFF, FACE, REMINDER, R
 
 private data class LightPresentation(val title: String, val advice: String, val color: Color)
 
-private fun LightCondition.presentation(): LightPresentation = when (this) {
+private fun LightCondition.presentation(lux: Float): LightPresentation = when (this) {
     LightCondition.TOO_DARK -> LightPresentation(
-        "Terlalu redup",
-        "Pindah ke tempat yang lebih terang sebelum melakukan pemeriksaan.",
+        "Cahaya rendah",
+        if (lux < 50f) "Nyalakan lampu ruangan, buka tirai pada siang hari, atau pindahkan lampu meja agar area baca ikut terang. Hindari membaca hanya dengan cahaya layar." else "Tambahkan lampu ruangan atau lampu meja yang menyinari buku/meja, bukan langsung ke mata. Ukur kembali setelah penyesuaian.",
         Color(0xFFC62828)
     )
     LightCondition.IDEAL -> LightPresentation(
-        "Pencahayaan sesuai",
-        "Kondisi cahaya berada pada rentang operasional aplikasi.",
+        "Dalam rentang operasional aplikasi",
+        "Untuk membaca/menulis di meja, acuan tempat kerja sering berada sekitar 500 lux pada bidang tugas; pekerjaan dominan layar dapat memerlukan sekitar 300 lux pencahayaan umum. Pastikan tidak ada silau atau bayangan.",
         Color(0xFF2E7D32)
     )
     LightCondition.TOO_BRIGHT -> LightPresentation(
-        "Terlalu terang",
-        "Kurangi cahaya langsung atau pindah ke tempat yang lebih teduh.",
+        "Cahaya tinggi",
+        "Kurangi lampu yang mengarah langsung ke mata atau permukaan layar, tutup sebagian tirai, ubah posisi meja, atau gunakan diffuser. Jangan menatap matahari atau sumber cahaya kuat.",
         Color(0xFFEF6C00)
     )
 }
@@ -161,7 +161,7 @@ private fun HomeModuleButton(label: String, onClick: () -> Unit) {
 
 @Composable
 private fun EnvironmentScreen(lux: Float?, sensorAvailable: Boolean) {
-    val presentation = lux?.let { LightConditionEvaluator.evaluate(it).presentation() }
+    val presentation = lux?.let { LightConditionEvaluator.evaluate(it).presentation(it) }
     Column(
         modifier = Modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(12.dp),
@@ -189,15 +189,10 @@ private fun EnvironmentScreen(lux: Float?, sensorAvailable: Boolean) {
                 }
             }
         }
-        Text("Rentang operasional aplikasi: 100–400 lux.")
-        Text(
-            "Saat cahaya berada pada rentang tersebut, kecerahan layar aplikasi diatur ke 80%. Pengaturan ini hanya berlaku selama aplikasi aktif.",
-            style = MaterialTheme.typography.bodySmall
-        )
-        Text(
-            "Rentang ini adalah ambang operasional aplikasi, bukan standar medis. Sensor dan hasilnya dapat berbeda antarperangkat.",
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
+        Text("Acuan pencahayaan berdasarkan aktivitas", style = MaterialTheme.typography.titleMedium)
+        Text("• Pekerjaan dominan layar: sekitar 300 lux pencahayaan umum sebagai salah satu panduan tempat kerja.\n• Membaca/menulis di meja: sekitar 500 lux pada bidang tugas.\nAngka ini adalah acuan pencahayaan tempat kerja, bukan ambang diagnosis atau jaminan kesehatan mata.")
+        Text("Cara memperbaiki hasil", style = MaterialTheme.typography.titleMedium)
+        Text("Ukur di area kerja setinggi permukaan meja. Jika rendah: nyalakan lampu ruangan, buka tirai, atau arahkan lampu meja ke buku/meja. Jika tinggi atau silau: ubah arah lampu, gunakan diffuser/tirai, dan hindari pantulan pada layar.")
+        Text("Catatan: sensor ponsel mengukur cahaya di dekat sensor, bukan selalu pencahayaan tepat di atas meja. Rentang 100–400 lux sebelumnya hanya ambang operasional aplikasi. ISO/CIE 8995-1:2025 menetapkan kebutuhan pencahayaan menurut jenis aktivitas dan kualitas pencahayaan; tidak ada satu angka lux medis universal. Kecerahan layar 80% tidak menambah lux ruangan.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
