@@ -8,14 +8,14 @@ Aplikasi Android untuk edukasi dan skrining awal penglihatan. **Aplikasi ini buk
 - Eksperimen visual kedip dengan panduan mulai 5 Hz, kenaikan bertahap, pencatatan apakah kedipan masih terlihat/menyatu/tidak pasti, dan peringatan keselamatan. Ini bukan pengukuran CFF klinis.
 - Estimasi jarak wajah melalui kamera depan dan ML Kit Face Detection. Referensi kalibrasi dikunci sampai pengguna menghapus atau memperbaruinya; hasil berikutnya adalah perkiraan relatif.
 - Pengingat aturan 20-20-20 menggunakan WorkManager dan notifikasi Android.
-- Ringkasan status edukatif untuk modul.
+- Simulasi persepsi warna dengan lima pelat titik berwarna orisinal, input jawaban, dan ringkasan respons sesi; simulasi ini tidak menilai normal/abnormal dan bukan tes Ishihara resmi.\n- Ringkasan status edukatif untuk modul.
 
 ## Modul yang menunggu aset resmi
 Tes Ishihara belum diaktifkan karena belum ada pelat asli yang berlisensi dan tervalidasi di repository. Aplikasi sengaja tidak membuat pelat acak atau tiruan.
 
 ## Batasan dan keselamatan
 - Hasil tidak menggantikan pemeriksaan dokter mata atau optometris.
-- Tes Ishihara hanya boleh memakai pelat asli yang sah, berlisensi, dan tervalidasi.
+- Simulasi persepsi warna di aplikasi bukan tes Ishihara resmi dan tidak memiliki validitas klinis. Pemeriksaan diagnostik harus dilakukan dengan metode tervalidasi oleh tenaga kesehatan.
 - CFF melalui layar ponsel bersifat eksperimental. Refresh rate, frame pacing, PWM, kecerahan, dan karakteristik panel membatasi akurasi frekuensi kedipan fisik.
 - Estimasi jarak wajah memerlukan kalibrasi manual. Perubahan zoom, orientasi, kamera, posisi, atau pencahayaan dapat memengaruhi hasil.
 - Rentang pencahayaan pada aplikasi adalah panduan edukatif berdasarkan aktivitas, bukan standar medis, pengukuran klinis, atau batas diagnosis.
@@ -37,4 +37,4 @@ gradle assembleDebug
 APK debug dihasilkan pada `app/build/outputs/apk/debug/app-debug.apk`. GitHub Actions menjalankan unit test dan mengunggah APK sebagai artifact `EyeCare-Pro-debug`.
 
 ## Status validasi
-CI sebelumnya berhasil membangun APK dasar dan menjalankan unit test. Revisi 0.2.0 menunggu hasil CI terbaru. Fitur kamera, tampilan, notifikasi, sensor, dan animasi tetap memerlukan pengujian pada perangkat Android fisik sebelum dianggap siap rilis.
+CI sebelumnya berhasil membangun APK dasar dan menjalankan unit test. Revisi 0.2.0 dan simulasi warna menunggu hasil CI terbaru. Fitur kamera, tampilan, notifikasi, sensor, dan animasi tetap memerlukan pengujian pada perangkat Android fisik sebelum dianggap siap rilis.
