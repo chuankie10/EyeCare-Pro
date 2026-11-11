@@ -202,7 +202,7 @@ private fun EnvironmentScreen(lux: Float?, sensorAvailable: Boolean) {
                     Text("Menunggu pembacaan sensor…")
                 } else {
                     Text(
-                        "\${String.format(Locale.getDefault(), "%.0f", lux)} lux",
+                        "${String.format(Locale.getDefault(), "%.0f", lux)} lux",
                         style = MaterialTheme.typography.displayMedium
                     )
                     Text(presentation!!.title, style = MaterialTheme.typography.titleLarge, color = presentation.color)

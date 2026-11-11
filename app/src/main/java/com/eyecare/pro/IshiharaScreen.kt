@@ -79,10 +79,10 @@ fun IshiharaScreen(viewModel: IshiharaViewModel = viewModel()) {
                 }
 
                 Text(
-                    "Pelat \${current.currentQuestion} dari \${current.totalQuestions}",
+                    "Pelat ${current.currentQuestion} dari ${current.totalQuestions}",
                     style = MaterialTheme.typography.titleMedium
                 )
-                Text("Sumber materi: \${current.sourceTitle}")
+                Text("Sumber materi: ${current.sourceTitle}")
                 if (plateBitmap == null) {
                     Text(
                         "Aset pelat tidak dapat dimuat. Sesi dihentikan agar jawaban tidak " +
@@ -125,13 +125,13 @@ fun IshiharaScreen(viewModel: IshiharaViewModel = viewModel()) {
 
             is IshiharaUiState.Completed -> {
                 Text("Sesi selesai", style = MaterialTheme.typography.titleLarge)
-                Text("Sumber materi: \${current.sourceTitle}")
+                Text("Sumber materi: ${current.sourceTitle}")
                 Text(
-                    "Jawaban benar: \${current.score.correctAnswers} dari " +
-                        "\${current.score.totalQuestions}"
+                    "Jawaban benar: ${current.score.correctAnswers} dari " +
+                        "${current.score.totalQuestions}"
                 )
-                Text("Jawaban terisi: \${current.score.answeredQuestions}")
-                Text("Tidak dijawab: \${current.score.unansweredQuestions}")
+                Text("Jawaban terisi: ${current.score.answeredQuestions}")
+                Text("Tidak dijawab: ${current.score.unansweredQuestions}")
                 Text(
                     "Indikasi klinis: tidak dapat ditentukan oleh aplikasi ini. Rekap jumlah " +
                         "jawaban bukan diagnosis dan tidak boleh diterjemahkan menjadi status " +

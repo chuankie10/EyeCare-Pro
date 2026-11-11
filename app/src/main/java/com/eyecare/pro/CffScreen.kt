@@ -60,14 +60,22 @@ fun CffScreen(
             return@LaunchedEffect
         }
 
-        var lastToggleNanos = 0L
+        var lastFrameNanos = 0L
+        var accumulatedNanos = 0L
         while (true) {
             val frameTimeNanos = withFrameNanos { it }
-            if (lastToggleNanos == 0L) {
-                lastToggleNanos = frameTimeNanos
-            } else if (frameTimeNanos - lastToggleNanos >= halfCycleNanos) {
-                flashOn = !flashOn
-                lastToggleNanos = frameTimeNanos
+            if (lastFrameNanos == 0L) {
+                lastFrameNanos = frameTimeNanos
+            } else {
+                val frameDeltaNanos = (frameTimeNanos - lastFrameNanos).coerceAtLeast(0L)
+                lastFrameNanos = frameTimeNanos
+                val phase = CffStimulusTiming.advanceFramePhase(
+                    accumulatedNanos = accumulatedNanos,
+                    frameDeltaNanos = frameDeltaNanos,
+                    halfCycleNanos = halfCycleNanos
+                )
+                accumulatedNanos = phase.remainderNanos
+                if (phase.shouldToggle) flashOn = !flashOn
             }
         }
     }
@@ -101,7 +109,7 @@ fun CffScreen(
                 String.format(Locale.ROOT, "%.1f Hz", maxFrequencyHz)
         )
         if (canRun) {
-            Text("Frekuensi target aplikasi: \${String.format(Locale.ROOT, "%.1f", frequency)} Hz")
+            Text("Frekuensi target aplikasi: ${String.format(Locale.ROOT, "%.1f", frequency)} Hz")
             Slider(
                 value = frequency,
                 onValueChange = { frequency = it },
@@ -199,8 +207,8 @@ fun CffScreen(
 
         lastObservation?.let { observation ->
             Text(
-                "Catatan lokal: target \${String.format(Locale.ROOT, "%.1f", observation.requestedFrequencyHz)} Hz; " +
-                    "\${observation.perception.displayLabel.lowercase(Locale.ROOT)}."
+                "Catatan lokal: target ${String.format(Locale.ROOT, "%.1f", observation.requestedFrequencyHz)} Hz; " +
+                    "${observation.perception.displayLabel.lowercase(Locale.ROOT)}."
             )
         }
 

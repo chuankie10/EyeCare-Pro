@@ -33,7 +33,7 @@ fun ResultsScreen(lux: Float?, lastCffObservation: CffObservation?, lastDistance
                 LightCondition.IDEAL -> "Kondisi pencahayaan memenuhi ambang operasional aplikasi. Lanjutkan hanya jika Anda merasa nyaman."
                 LightCondition.TOO_BRIGHT -> "Kurangi cahaya langsung, silau, atau pantulan layar."
             }
-            Text("Pembacaan terakhir: \${String.format(Locale.ROOT, "%.0f", lux)} lux", style = MaterialTheme.typography.titleMedium)
+            Text("Pembacaan terakhir: ${String.format(Locale.ROOT, "%.0f", lux)} lux", style = MaterialTheme.typography.titleMedium)
             Text(status, style = MaterialTheme.typography.titleLarge, color = when (condition) {
                 LightCondition.TOO_DARK -> Color(0xFFC62828)
                 LightCondition.IDEAL -> Color(0xFF2E7D32)
@@ -44,13 +44,13 @@ fun ResultsScreen(lux: Float?, lastCffObservation: CffObservation?, lastDistance
         Text("Catatan pengamatan", style = MaterialTheme.typography.titleMedium)
         Text(
             lastCffObservation?.let {
-                "CFF/FFF: target \${String.format(Locale.ROOT, "%.1f", it.requestedFrequencyHz)} Hz; " +
-                    "\${it.perception.displayLabel.lowercase(Locale.ROOT)}; refresh rate yang dilaporkan " +
-                    "\${String.format(Locale.ROOT, "%.1f", it.reportedDisplayRefreshRateHz)} Hz. " +
+                "CFF/FFF: target ${String.format(Locale.ROOT, "%.1f", it.requestedFrequencyHz)} Hz; " +
+                    "${it.perception.displayLabel.lowercase(Locale.ROOT)}; refresh rate yang dilaporkan " +
+                    "${String.format(Locale.ROOT, "%.1f", it.reportedDisplayRefreshRateHz)} Hz. " +
                     "Ini respons subjektif, bukan ambang klinis."
             } ?: "CFF/FFF: belum ada catatan pengamatan."
         )
-        Text(lastDistanceCm?.let { "Estimasi jarak wajah terakhir: \${String.format(Locale.ROOT, "%.1f", it)} cm." } ?: "Estimasi jarak wajah: belum tersedia; lakukan kalibrasi kamera.")
+        Text(lastDistanceCm?.let { "Estimasi jarak wajah terakhir: ${String.format(Locale.ROOT, "%.1f", it)} cm." } ?: "Estimasi jarak wajah: belum tersedia; lakukan kalibrasi kamera.")
         Text("Status modul", style = MaterialTheme.typography.titleMedium)
         Text("• Pemeriksaan cahaya: aktif jika perangkat memiliki sensor cahaya.")
         Text("• Ishihara: alur jawaban dan penghitung skor telah disiapkan, tetapi terkunci sampai aset resmi, izin, dan validasi edisi tersedia.")
