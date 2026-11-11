@@ -113,7 +113,7 @@ private fun EyeCareApp(lux: Float?, sensorAvailable: Boolean) {
             AppPage.HOME -> {
                 Text("Pilih modul pemeriksaan", style = MaterialTheme.typography.titleLarge)
                 HomeModuleButton("Pemeriksaan pencahayaan") { page = AppPage.ENVIRONMENT }
-                HomeModuleButton("Tes warna Ishihara") { page = AppPage.ISHIHARA }
+                HomeModuleButton("Simulasi persepsi warna") { page = AppPage.ISHIHARA }
                 HomeModuleButton("Eksperimen kedip CFF") { page = AppPage.CFF }
                 HomeModuleButton("Estimasi jarak wajah") { page = AppPage.FACE }
                 HomeModuleButton("Pengingat 20-20-20") { page = AppPage.REMINDER }
