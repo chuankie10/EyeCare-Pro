@@ -24,6 +24,7 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -55,6 +56,9 @@ fun FaceDistanceScreen(onEstimate: (Float) -> Unit = {}) {
     var distanceText by remember { mutableStateOf("40") }
     var estimatedDistanceCm by remember { mutableStateOf<Float?>(null) }
     var cameraError by remember { mutableStateOf<String?>(null) }
+    val latestCalibratedEyePx by rememberUpdatedState(calibratedEyeDistancePx)
+    val latestCalibratedCm by rememberUpdatedState(calibratedDistanceCm)
+    val latestOnEstimate by rememberUpdatedState(onEstimate)
 
     Column(
         modifier = Modifier.fillMaxWidth().padding(16.dp),
@@ -108,14 +112,14 @@ fun FaceDistanceScreen(onEstimate: (Float) -> Unit = {}) {
                                             val measured = abs(left.x - right.x)
                                             if (measured > 1f) {
                                                 eyeDistancePx = measured
-                                                val referencePx = calibratedEyeDistancePx
-                                                val referenceCm = calibratedDistanceCm
+                                                val referencePx = latestCalibratedEyePx
+                                                val referenceCm = latestCalibratedCm
                                                 if (referencePx != null && referenceCm != null) {
                                                     val estimate = FaceDistanceEstimator.estimateCentimeters(
                                                         measured, referencePx, referenceCm
                                                     )
                                                     estimatedDistanceCm = estimate
-                                                    estimate?.let(onEstimate)
+                                                    estimate?.let(latestOnEstimate)
                                                 }
                                             }
                                         }
@@ -161,7 +165,17 @@ fun FaceDistanceScreen(onEstimate: (Float) -> Unit = {}) {
                     estimatedDistanceCm = calibratedDistanceCm
                 }
             ) {
-                Text("Kalibrasi pada jarak ini")
+                Text(if (calibratedEyeDistancePx == null) "Kunci kalibrasi pada jarak ini" else "Perbarui kalibrasi")
+            }
+            if (calibratedEyeDistancePx != null) {
+                Text("Kalibrasi terkunci. Nilai referensi tidak berubah saat wajah bergerak.")
+                Button(onClick = {
+                    calibratedEyeDistancePx = null
+                    calibratedDistanceCm = null
+                    estimatedDistanceCm = null
+                }) { Text("Hapus kalibrasi dan ulangi") }
+            } else {
+                Text("Kalibrasi belum dikunci. Ukur jarak kamera depan ke wajah dengan penggaris, duduk tegak, tatap kamera, lalu tekan tombol.")
             }
             Text(
                 estimatedDistanceCm?.let { "Perkiraan jarak saat ini: ${String.format(Locale.getDefault(), "%.1f", it)} cm" }
