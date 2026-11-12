@@ -174,7 +174,7 @@ fun CffScreen(
             Text(
                 "Catatan lokal: target " +
                     String.format(Locale.ROOT, "%.1f", observation.requestedFrequencyHz) +
-                    " Hz; \${observation.perception.displayLabel.lowercase(Locale.ROOT)}."
+                    " Hz; ${observation.perception.displayLabel.lowercase(Locale.ROOT)}."
             )
         }
         Text(
