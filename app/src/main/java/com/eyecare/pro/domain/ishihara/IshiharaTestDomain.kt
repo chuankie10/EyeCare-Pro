@@ -1,5 +1,7 @@
 package com.eyecare.pro.domain.ishihara
 
+import java.util.Locale
+
 /**
  * Metadata for one plate from a legally obtained, professionally validated edition.
  * The app must not generate substitute pseudo-Ishihara artwork.
@@ -31,24 +33,17 @@ data class IshiharaDataset(
         if (plates.isEmpty() || plates.map { it.id }.distinct().size != plates.size) return false
 
         return plates.all { plate ->
-            val normalizedOptions = plate.answerOptions.map { it.trim().lowercase() }
+            val normalizedOptions = plate.answerOptions.map { it.trim().lowercase(Locale.ROOT) }
+            val normalizedAcceptedAnswers =
+                plate.acceptedAnswers.map { it.trim().lowercase(Locale.ROOT) }
             plate.id.isNotBlank() &&
                 plate.imageAssetPath.isNotBlank() &&
                 normalizedOptions.isNotEmpty() &&
-                normalizedOptions.all { it.isNotBlank() } &&
-                normalizedOptions.none {
-                    it.equals(IshiharaScoringEngine.UNSURE_ANSWER, ignoreCase = true)
-                } &&
+                normalizedOptions.all { it.isNotBlank() && it != IshiharaScoringEngine.UNSURE_ANSWER.lowercase(Locale.ROOT) } &&
                 normalizedOptions.distinct().size == normalizedOptions.size &&
-                plate.acceptedAnswers.isNotEmpty() &&
-                plate.acceptedAnswers.none {
-                    it.trim().equals(IshiharaScoringEngine.UNSURE_ANSWER, ignoreCase = true)
-                } &&
-                plate.acceptedAnswers.all { accepted ->
-                    accepted.isNotBlank() && plate.answerOptions.any {
-                        it.trim().equals(accepted.trim(), ignoreCase = true)
-                    }
-                }
+                normalizedAcceptedAnswers.isNotEmpty() &&
+                normalizedAcceptedAnswers.distinct().size == normalizedAcceptedAnswers.size &&
+                normalizedAcceptedAnswers.all { it.isNotBlank() && it in normalizedOptions }
         }
     }
 }
@@ -82,10 +77,10 @@ object IshiharaScoringEngine {
             "Jawaban memuat ID pelat yang tidak ada di dataset."
         }
         require(plates.all { plate ->
-            val options = plate.answerOptions.map { it.trim().lowercase() }
-            val accepted = plate.acceptedAnswers.map { it.trim().lowercase() }
+            val options = plate.answerOptions.map { it.trim().lowercase(Locale.ROOT) }
+            val accepted = plate.acceptedAnswers.map { it.trim().lowercase(Locale.ROOT) }
             options.isNotEmpty() &&
-                options.all { it.isNotBlank() && it != UNSURE_ANSWER.lowercase() } &&
+                options.all { it.isNotBlank() && it != UNSURE_ANSWER.lowercase(Locale.ROOT) } &&
                 options.distinct().size == options.size &&
                 accepted.isNotEmpty() &&
                 accepted.distinct().size == accepted.size &&
