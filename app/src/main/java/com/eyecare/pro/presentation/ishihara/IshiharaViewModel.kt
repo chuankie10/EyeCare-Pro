@@ -59,6 +59,17 @@ class IshiharaViewModel(
         if (answer.isBlank() || (!unsure && !listed)) return
 
         answersByPlateId[question.plate.id] = answer
+        advanceAfterResponse(dataset, question)
+    }
+
+    fun skipCurrentQuestion() {
+        val question = _uiState.value as? IshiharaUiState.Question ?: return
+        val dataset = activeDataset ?: return
+        // Intentionally do not insert a map entry: scoring counts this plate as unanswered.
+        advanceAfterResponse(dataset, question)
+    }
+
+    private fun advanceAfterResponse(dataset: IshiharaDataset, question: IshiharaUiState.Question) {
         val nextIndex = question.currentQuestion
         if (nextIndex >= dataset.plates.size) {
             _uiState.value = IshiharaUiState.Completed(
