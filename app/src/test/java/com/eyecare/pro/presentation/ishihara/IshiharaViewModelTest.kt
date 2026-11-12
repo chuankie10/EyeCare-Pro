@@ -47,6 +47,25 @@ class IshiharaViewModelTest {
         assertEquals(1, (viewModel.uiState.value as IshiharaUiState.Question).currentQuestion)
     }
 
+    @Test fun skippedQuestionIsCountedAsUnanswered() {
+        val repository = object : IshiharaDatasetRepository {
+            override fun loadVerifiedDataset() = fixture
+        }
+        val viewModel = IshiharaViewModel(repository)
+
+        viewModel.skipCurrentQuestion()
+        assertEquals(2, (viewModel.uiState.value as IshiharaUiState.Question).currentQuestion)
+        viewModel.submitAnswer("8")
+
+        val completed = viewModel.uiState.value as IshiharaUiState.Completed
+        assertEquals(1, completed.score.correctAnswers)
+        assertEquals(0, completed.score.incorrectAnswers)
+        assertEquals(0, completed.score.unsureAnswers)
+        assertEquals(1, completed.score.unansweredQuestions)
+        assertEquals(1, completed.score.answeredQuestions)
+        assertEquals(2, completed.score.totalQuestions)
+    }
+
     @Test fun defaultRepositoryKeepsTestUnavailable() {
         assertTrue(IshiharaViewModel().uiState.value is IshiharaUiState.Unavailable)
     }
