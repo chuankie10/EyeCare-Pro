@@ -55,6 +55,22 @@ class IshiharaScoringEngineTest {
         IshiharaScoringEngine.score(plates, mapOf("p1" to "not-an-option"))
     }
 
+    @Test(expected = IllegalArgumentException::class) fun rejectsAcceptedAnswerMissingFromOptions() {
+        val malformed = plates.first().copy(
+            answerOptions = listOf("12"),
+            acceptedAnswers = setOf("21")
+        )
+        IshiharaScoringEngine.score(listOf(malformed), emptyMap())
+    }
+
+    @Test(expected = IllegalArgumentException::class) fun rejectsReservedUnsureTokenAsOption() {
+        val malformed = plates.first().copy(
+            answerOptions = listOf("12", IshiharaScoringEngine.UNSURE_ANSWER),
+            acceptedAnswers = setOf("12")
+        )
+        IshiharaScoringEngine.score(listOf(malformed), emptyMap())
+    }
+
     @Test(expected = IllegalArgumentException::class) fun rejectsEmptyDataset() {
         IshiharaScoringEngine.score(emptyList(), emptyMap())
     }
