@@ -41,7 +41,7 @@ Aplikasi hanya menghitung jawaban benar, salah, ragu-ragu, dan tidak dijawab. Ap
 - Android Gradle Plugin: 8.13.2
 - Kotlin Gradle plugin + Compose compiler plugin: 2.3.10 (compatible with AGP 8.13.x and Gradle 8.13)
 - Gradle: 8.13
-- Compose BOM: 2025.10.01
+- Compose BOM: 2025.09.01 (Compose 1.9.2 stable)
 - AndroidX Core KTX: 1.17.0
 - Activity Compose: 1.11.0
 - Lifecycle: 2.9.4
