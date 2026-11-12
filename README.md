@@ -8,7 +8,7 @@ Aplikasi Android untuk edukasi dan pengamatan awal terkait kenyamanan penglihata
 - Eksperimen CFF/FFF berbasis frame Compose, dengan target yang dibatasi secara teoritis oleh refresh rate yang dilaporkan perangkat. Pengguna mencatat apakah stimulus masih tampak berkedip, tampak menyatu, atau tidak pasti.
 - Estimasi jarak wajah melalui kamera depan dan ML Kit Face Detection. Hasil merupakan perkiraan relatif yang memerlukan kalibrasi manual.
 - Pengingat aturan 20-20-20 menggunakan WorkManager dan notifikasi Android.
-- Modul Ishihara dengan model domain, gerbang lisensi/validasi, alur jawaban, dan rekap mentah. **Modul tetap terkunci** karena repository belum berisi pelat asli yang berlisensi, identitas edisi, kunci jawaban, dan bukti validasi penyajian layar.
+- Modul Ishihara dengan model domain, gerbang lisensi/validasi, alur jawaban, opsi "ragu-ragu" dan "lewati", serta rekap mentah yang membedakan jawaban salah dan tidak dijawab. **Modul tetap terkunci** karena repository belum berisi pelat asli yang berlisensi, identitas edisi, kunci jawaban, dan bukti validasi penyajian layar.
 
 ## Ishihara: kebijakan materi
 
@@ -18,7 +18,7 @@ Aplikasi hanya menghitung jawaban benar, salah, ragu-ragu, dan tidak dijawab. Ap
 
 ## CFF/FFF: batasan dan keselamatan
 
-- Target frekuensi adalah jadwal perangkat lunak, bukan pengukuran frekuensi cahaya fisik.
+- Target frekuensi adalah jadwal perangkat lunak, bukan pengukuran frekuensi cahaya fisik. Aplikasi memperbarui batas teoritis ketika Android melaporkan perubahan refresh rate layar; perubahan aktual tetap dapat terjadi di antara callback.
 - Satu siklus hitam-putih membutuhkan setidaknya dua refresh; batas teoritis alternasi adalah sekitar setengah refresh rate. Contoh: 60 Hz → 30 Hz; 90 Hz → 45 Hz; 120 Hz → 60 Hz.
 - Frame terlewat, refresh rate adaptif, frame pacing Android, PWM, kecerahan, panel, mode hemat daya, dan beban sistem dapat menurunkan atau mengubah stimulus aktual.
 - Respons pengguna bersifat subjektif dan tidak boleh digunakan sendirian untuk menyimpulkan kelelahan mata atau kondisi medis.
