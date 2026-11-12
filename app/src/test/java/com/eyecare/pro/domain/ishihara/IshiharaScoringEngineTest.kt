@@ -55,6 +55,20 @@ class IshiharaScoringEngineTest {
         IshiharaScoringEngine.score(plates, mapOf("p1" to "not-an-option"))
     }
 
+    @Test fun datasetRejectsCaseInsensitiveDuplicateAcceptedAnswers() {
+        val malformedPlate = IshiharaPlate(
+            "case-duplicate",
+            "fixture/case-duplicate.png",
+            listOf("A", "B"),
+            setOf("A", "a")
+        )
+        val dataset = IshiharaDataset(
+            "fixture", "Unit-test fixture only", "fixture-license", "fixture-validation",
+            true, true, listOf(malformedPlate)
+        )
+        assertFalse(dataset.isEligibleForUse())
+    }
+
     @Test(expected = IllegalArgumentException::class) fun rejectsAcceptedAnswerMissingFromOptions() {
         val malformed = plates.first().copy(
             answerOptions = listOf("12"),
