@@ -55,8 +55,13 @@ fun CffScreen(
     }
 
     var flashOn by remember { mutableStateOf(false) }
-    val halfCycleNanos = remember(state.targetFrequencyHz) {
-        CffStimulusTiming.halfCycleNanos(state.targetFrequencyHz)
+    val stimulusFrequencyHz = if (state.isRunning) {
+        state.lastStimulusFrequencyHz ?: state.targetFrequencyHz
+    } else {
+        state.targetFrequencyHz
+    }
+    val halfCycleNanos = remember(stimulusFrequencyHz) {
+        CffStimulusTiming.halfCycleNanos(stimulusFrequencyHz)
     }
     LaunchedEffect(state.isRunning, halfCycleNanos) {
         if (!state.isRunning) {
@@ -109,7 +114,7 @@ fun CffScreen(
         if (canRun) {
             Text(
                 "Frekuensi target aplikasi: " +
-                    String.format(Locale.ROOT, "%.1f Hz", state.targetFrequencyHz)
+                    String.format(Locale.ROOT, "%.1f Hz", stimulusFrequencyHz)
             )
             if (maxFrequencyHz > 5f) {
                 Slider(
@@ -139,7 +144,8 @@ fun CffScreen(
             Text("Saya telah membaca peringatan keselamatan.")
         }
         Button(
-            enabled = canRun && state.warningAcknowledged && !state.isRunning,
+            enabled = canRun && state.warningAcknowledged && !state.isRunning &&
+                !state.awaitingObservation,
             onClick = { viewModel.start(safeRefreshRate) }
         ) { Text("Mulai stimulasi") }
         OutlinedButton(
