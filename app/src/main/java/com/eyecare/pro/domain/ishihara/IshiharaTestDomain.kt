@@ -36,8 +36,14 @@ data class IshiharaDataset(
                 plate.imageAssetPath.isNotBlank() &&
                 normalizedOptions.isNotEmpty() &&
                 normalizedOptions.all { it.isNotBlank() } &&
+                normalizedOptions.none {
+                    it.equals(IshiharaScoringEngine.UNSURE_ANSWER, ignoreCase = true)
+                } &&
                 normalizedOptions.distinct().size == normalizedOptions.size &&
                 plate.acceptedAnswers.isNotEmpty() &&
+                plate.acceptedAnswers.none {
+                    it.trim().equals(IshiharaScoringEngine.UNSURE_ANSWER, ignoreCase = true)
+                } &&
                 plate.acceptedAnswers.all { accepted ->
                     accepted.isNotBlank() && plate.answerOptions.any {
                         it.trim().equals(accepted.trim(), ignoreCase = true)
@@ -75,8 +81,17 @@ object IshiharaScoringEngine {
         require(answersByPlateId.keys.all { it in plateIds }) {
             "Jawaban memuat ID pelat yang tidak ada di dataset."
         }
-        require(plates.all { it.acceptedAnswers.isNotEmpty() }) {
-            "Setiap pelat harus memiliki kunci jawaban edisi yang ditinjau."
+        require(plates.all { plate ->
+            val options = plate.answerOptions.map { it.trim().lowercase() }
+            val accepted = plate.acceptedAnswers.map { it.trim().lowercase() }
+            options.isNotEmpty() &&
+                options.all { it.isNotBlank() && it != UNSURE_ANSWER.lowercase() } &&
+                options.distinct().size == options.size &&
+                accepted.isNotEmpty() &&
+                accepted.distinct().size == accepted.size &&
+                accepted.all { it in options }
+        }) {
+            "Opsi dan kunci jawaban setiap pelat harus konsisten dan tidak memakai token ragu-ragu."
         }
 
         var correct = 0
