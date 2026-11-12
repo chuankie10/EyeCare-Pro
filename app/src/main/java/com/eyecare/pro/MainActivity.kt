@@ -5,7 +5,10 @@ import android.hardware.Sensor
 import android.hardware.SensorEvent
 import android.hardware.SensorEventListener
 import android.hardware.SensorManager
+import android.hardware.display.DisplayManager
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -47,14 +50,27 @@ private fun LightCondition.presentation(lux: Float, task: LightTask): LightPrese
 
 class MainActivity : ComponentActivity(), SensorEventListener {
     private lateinit var sensorManager: SensorManager
+    private lateinit var displayManager: DisplayManager
     private var lightSensor: Sensor? = null
     private var currentLux by mutableStateOf<Float?>(null)
     private var sensorAvailable by mutableStateOf(true)
     private var displayRefreshRateHz by mutableStateOf(60f)
 
+    private val displayListener = object : DisplayManager.DisplayListener {
+        override fun onDisplayAdded(displayId: Int) = Unit
+        override fun onDisplayRemoved(displayId: Int) = Unit
+
+        override fun onDisplayChanged(displayId: Int) {
+            @Suppress("DEPRECATION")
+            val defaultDisplayId = windowManager.defaultDisplay.displayId
+            if (displayId == defaultDisplayId) updateDisplayRefreshRate()
+        }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         sensorManager = getSystemService(Context.SENSOR_SERVICE) as SensorManager
+        displayManager = getSystemService(Context.DISPLAY_SERVICE) as DisplayManager
         lightSensor = sensorManager.getDefaultSensor(Sensor.TYPE_LIGHT)
         sensorAvailable = lightSensor != null
         updateDisplayRefreshRate()
@@ -73,11 +89,13 @@ class MainActivity : ComponentActivity(), SensorEventListener {
 
     override fun onResume() {
         super.onResume()
+        displayManager.registerDisplayListener(displayListener, Handler(Looper.getMainLooper()))
         updateDisplayRefreshRate()
         lightSensor?.let { sensorManager.registerListener(this, it, SensorManager.SENSOR_DELAY_NORMAL) }
     }
 
     override fun onPause() {
+        displayManager.unregisterDisplayListener(displayListener)
         sensorManager.unregisterListener(this)
         window.attributes = window.attributes.apply {
             screenBrightness = WindowManager.LayoutParams.BRIGHTNESS_OVERRIDE_NONE
@@ -87,7 +105,9 @@ class MainActivity : ComponentActivity(), SensorEventListener {
 
     @Suppress("DEPRECATION")
     private fun updateDisplayRefreshRate() {
-        val reportedRate = windowManager.defaultDisplay.refreshRate
+        val defaultDisplay = windowManager.defaultDisplay
+        val reportedRate = displayManager.getDisplay(defaultDisplay.displayId)?.refreshRate
+            ?: defaultDisplay.refreshRate
         displayRefreshRateHz = reportedRate.takeIf { it.isFinite() && it > 0f } ?: 60f
     }
 
