@@ -26,14 +26,22 @@ class CffViewModel : ViewModel() {
     fun updateFrequencyLimit(maximumFrequencyHz: Float) {
         if (!maximumFrequencyHz.isFinite() || maximumFrequencyHz <= 0f) return
         val current = _uiState.value
-        val target = if (maximumFrequencyHz >= MIN_FREQUENCY_HZ) {
+        val stimulusExceedsNewLimit = current.isRunning &&
+            (current.lastStimulusFrequencyHz ?: current.targetFrequencyHz) > maximumFrequencyHz
+        val target = if (current.isRunning || current.awaitingObservation) {
+            current.targetFrequencyHz
+        } else if (maximumFrequencyHz >= MIN_FREQUENCY_HZ) {
             current.targetFrequencyHz.coerceIn(MIN_FREQUENCY_HZ, maximumFrequencyHz)
         } else {
             maximumFrequencyHz
         }
         _uiState.value = current.copy(
             maximumFrequencyHz = maximumFrequencyHz,
-            targetFrequencyHz = target
+            targetFrequencyHz = target,
+            isRunning = current.isRunning && !stimulusExceedsNewLimit,
+            awaitingObservation = current.awaitingObservation && !stimulusExceedsNewLimit,
+            lastStimulusFrequencyHz = if (stimulusExceedsNewLimit) null else current.lastStimulusFrequencyHz,
+            lastStimulusRefreshRateHz = if (stimulusExceedsNewLimit) null else current.lastStimulusRefreshRateHz
         )
     }
 
@@ -57,7 +65,9 @@ class CffViewModel : ViewModel() {
         val maximum = CffStimulusTiming.maxAlternatingFrequencyHz(reportedDisplayRefreshRateHz)
         updateFrequencyLimit(maximum)
         val current = _uiState.value
-        if (!current.warningAcknowledged || current.isRunning || maximum < MIN_FREQUENCY_HZ) return
+        if (!current.warningAcknowledged || current.isRunning || current.awaitingObservation ||
+            maximum < MIN_FREQUENCY_HZ
+        ) return
         val target = current.targetFrequencyHz.coerceIn(MIN_FREQUENCY_HZ, maximum)
         _uiState.value = current.copy(
             targetFrequencyHz = target,
