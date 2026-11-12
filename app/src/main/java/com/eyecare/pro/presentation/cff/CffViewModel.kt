@@ -28,12 +28,14 @@ class CffViewModel : ViewModel() {
         val current = _uiState.value
         val stimulusExceedsNewLimit = current.isRunning &&
             (current.lastStimulusFrequencyHz ?: current.targetFrequencyHz) > maximumFrequencyHz
-        val target = if (current.isRunning || current.awaitingObservation) {
-            current.targetFrequencyHz
-        } else if (maximumFrequencyHz >= MIN_FREQUENCY_HZ) {
-            current.targetFrequencyHz.coerceIn(MIN_FREQUENCY_HZ, maximumFrequencyHz)
-        } else {
-            maximumFrequencyHz
+        val target = when {
+            stimulusExceedsNewLimit && maximumFrequencyHz >= MIN_FREQUENCY_HZ ->
+                current.targetFrequencyHz.coerceIn(MIN_FREQUENCY_HZ, maximumFrequencyHz)
+            stimulusExceedsNewLimit -> maximumFrequencyHz
+            current.isRunning || current.awaitingObservation -> current.targetFrequencyHz
+            maximumFrequencyHz >= MIN_FREQUENCY_HZ ->
+                current.targetFrequencyHz.coerceIn(MIN_FREQUENCY_HZ, maximumFrequencyHz)
+            else -> maximumFrequencyHz
         }
         _uiState.value = current.copy(
             maximumFrequencyHz = maximumFrequencyHz,
