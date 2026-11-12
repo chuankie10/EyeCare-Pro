@@ -65,4 +65,27 @@ class CffViewModelTest {
         assertFalse(viewModel.uiState.value.awaitingObservation)
         assertNull(viewModel.uiState.value.lastStimulusFrequencyHz)
     }
+
+    @Test fun cannotStartAgainUntilPendingObservationIsRecorded() {
+        val viewModel = CffViewModel()
+        viewModel.setWarningAcknowledged(true)
+        viewModel.start(60f)
+        viewModel.stop()
+        viewModel.start(60f)
+        assertFalse(viewModel.uiState.value.isRunning)
+        viewModel.recordObservation(FlickerPerception.UNCERTAIN)
+        viewModel.start(60f)
+        assertTrue(viewModel.uiState.value.isRunning)
+    }
+
+    @Test fun refreshRateDropBelowActiveStimulusCancelsTheRun() {
+        val viewModel = CffViewModel()
+        viewModel.setWarningAcknowledged(true)
+        viewModel.setTargetFrequency(25f)
+        viewModel.start(60f)
+        assertTrue(viewModel.uiState.value.isRunning)
+        viewModel.updateFrequencyLimit(20f)
+        assertFalse(viewModel.uiState.value.isRunning)
+        assertNull(viewModel.uiState.value.lastStimulusFrequencyHz)
+    }
 }
