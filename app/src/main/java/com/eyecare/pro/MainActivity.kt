@@ -32,6 +32,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import com.eyecare.pro.domain.cff.CffObservation
 import java.util.Locale
 
 private enum class AppPage { HOME, ENVIRONMENT, ISHIHARA, CFF, FACE, REMINDER, RESULTS }
@@ -49,16 +50,22 @@ class MainActivity : ComponentActivity(), SensorEventListener {
     private var lightSensor: Sensor? = null
     private var currentLux by mutableStateOf<Float?>(null)
     private var sensorAvailable by mutableStateOf(true)
+    private var displayRefreshRateHz by mutableStateOf(60f)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         sensorManager = getSystemService(Context.SENSOR_SERVICE) as SensorManager
         lightSensor = sensorManager.getDefaultSensor(Sensor.TYPE_LIGHT)
         sensorAvailable = lightSensor != null
+        updateDisplayRefreshRate()
         setContent {
             MaterialTheme {
                 Surface(modifier = Modifier.fillMaxSize()) {
-                    EyeCareApp(lux = currentLux, sensorAvailable = sensorAvailable)
+                    EyeCareApp(
+                        lux = currentLux,
+                        sensorAvailable = sensorAvailable,
+                        displayRefreshRateHz = displayRefreshRateHz
+                    )
                 }
             }
         }
@@ -66,6 +73,7 @@ class MainActivity : ComponentActivity(), SensorEventListener {
 
     override fun onResume() {
         super.onResume()
+        updateDisplayRefreshRate()
         lightSensor?.let { sensorManager.registerListener(this, it, SensorManager.SENSOR_DELAY_NORMAL) }
     }
 
@@ -75,6 +83,12 @@ class MainActivity : ComponentActivity(), SensorEventListener {
             screenBrightness = WindowManager.LayoutParams.BRIGHTNESS_OVERRIDE_NONE
         }
         super.onPause()
+    }
+
+    @Suppress("DEPRECATION")
+    private fun updateDisplayRefreshRate() {
+        val reportedRate = windowManager.defaultDisplay.refreshRate
+        displayRefreshRateHz = reportedRate.takeIf { it.isFinite() && it > 0f } ?: 60f
     }
 
     override fun onSensorChanged(event: SensorEvent) {
@@ -95,9 +109,13 @@ class MainActivity : ComponentActivity(), SensorEventListener {
 }
 
 @Composable
-private fun EyeCareApp(lux: Float?, sensorAvailable: Boolean) {
+private fun EyeCareApp(
+    lux: Float?,
+    sensorAvailable: Boolean,
+    displayRefreshRateHz: Float
+) {
     var page by androidx.compose.runtime.remember { mutableStateOf(AppPage.HOME) }
-    var lastCffHz by androidx.compose.runtime.remember { mutableStateOf<Float?>(null) }
+    var lastCffObservation by androidx.compose.runtime.remember { mutableStateOf<CffObservation?>(null) }
     var lastDistanceCm by androidx.compose.runtime.remember { mutableStateOf<Float?>(null) }
     var lightTask by androidx.compose.runtime.remember { mutableStateOf(LightTask.SCREEN_WORK) }
     Column(
@@ -113,8 +131,8 @@ private fun EyeCareApp(lux: Float?, sensorAvailable: Boolean) {
             AppPage.HOME -> {
                 Text("Pilih modul pemeriksaan", style = MaterialTheme.typography.titleLarge)
                 HomeModuleButton("Pemeriksaan pencahayaan") { page = AppPage.ENVIRONMENT }
-                HomeModuleButton("Simulasi persepsi warna") { page = AppPage.ISHIHARA }
-                HomeModuleButton("Eksperimen kedip CFF") { page = AppPage.CFF }
+                HomeModuleButton("Tes Ishihara (menunggu materi resmi)") { page = AppPage.ISHIHARA }
+                HomeModuleButton("Eksperimen kedip CFF/FFF") { page = AppPage.CFF }
                 HomeModuleButton("Estimasi jarak wajah") { page = AppPage.FACE }
                 HomeModuleButton("Pengingat 20-20-20") { page = AppPage.REMINDER }
                 HomeModuleButton("Ringkasan pemeriksaan") { page = AppPage.RESULTS }
@@ -133,10 +151,13 @@ private fun EyeCareApp(lux: Float?, sensorAvailable: Boolean) {
             }
             AppPage.ENVIRONMENT -> EnvironmentScreen(lux, sensorAvailable, lightTask) { lightTask = it }
             AppPage.ISHIHARA -> IshiharaScreen()
-            AppPage.CFF -> CffScreen(onResult = { lastCffHz = it })
+            AppPage.CFF -> CffScreen(
+                displayRefreshRateHz = displayRefreshRateHz,
+                onResult = { lastCffObservation = it }
+            )
             AppPage.FACE -> FaceDistanceScreen(onEstimate = { lastDistanceCm = it })
             AppPage.REMINDER -> ReminderScreen()
-            AppPage.RESULTS -> ResultsScreen(lux, lastCffHz, lastDistanceCm, lightTask)
+            AppPage.RESULTS -> ResultsScreen(lux, lastCffObservation, lastDistanceCm, lightTask)
         }
     }
 }
