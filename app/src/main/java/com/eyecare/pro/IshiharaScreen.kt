@@ -110,6 +110,12 @@ fun IshiharaScreen(viewModel: IshiharaViewModel = viewModel()) {
                     ) {
                         Text("Tidak tahu / tidak terlihat")
                     }
+                    OutlinedButton(
+                        onClick = viewModel::skipCurrentQuestion,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("Lewati pertanyaan")
+                    }
                     Text(
                         "Jangan gunakan filter warna, mode kenyamanan mata, atau pembesaran " +
                             "gambar. Kecerahan, kalibrasi warna, ukuran, dan karakteristik layar " +
