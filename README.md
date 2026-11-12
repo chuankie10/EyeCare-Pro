@@ -1,40 +1,78 @@
 # EyeCare Pro
 
-Aplikasi Android untuk edukasi dan skrining awal penglihatan. **Aplikasi ini bukan alat diagnosis medis.**
+Aplikasi Android untuk edukasi dan pengamatan awal terkait kenyamanan penglihatan. **Aplikasi ini bukan alat diagnosis medis.**
 
-## Fitur yang tersedia pada build saat ini
-- Pemeriksaan pencahayaan sekitar melalui `Sensor.TYPE_LIGHT`, dengan panduan rentang terpisah untuk pekerjaan dominan layar (300–500 lux) dan membaca/menulis (500–750 lux). Angka tersebut adalah rentang panduan edukatif, bukan ambang medis.
-- Saran tindakan ketika cahaya di bawah/di atas rentang aktivitas; pembacaan sensor ponsel hanya proksi dan bukan pengukuran terkalibrasi pada bidang kerja.
-- Eksperimen visual kedip dengan panduan mulai 5 Hz, kenaikan bertahap, pencatatan apakah kedipan masih terlihat/menyatu/tidak pasti, dan peringatan keselamatan. Ini bukan pengukuran CFF klinis.
-- Estimasi jarak wajah melalui kamera depan dan ML Kit Face Detection. Referensi kalibrasi dikunci sampai pengguna menghapus atau memperbaruinya; hasil berikutnya adalah perkiraan relatif.
+## Fitur pada build 0.3.0
+
+- Pemeriksaan pencahayaan sekitar melalui `Sensor.TYPE_LIGHT`, dengan rentang panduan terpisah untuk pekerjaan dominan layar (300–500 lux) dan membaca/menulis (500–750 lux). Angka tersebut merupakan panduan edukatif, bukan ambang medis.
+- Eksperimen CFF/FFF berbasis frame Compose, dengan target yang dibatasi secara teoritis oleh refresh rate yang dilaporkan perangkat. Pengguna mencatat apakah stimulus masih tampak berkedip, tampak menyatu, atau tidak pasti.
+- Estimasi jarak wajah melalui kamera depan dan ML Kit Face Detection. Hasil merupakan perkiraan relatif yang memerlukan kalibrasi manual.
 - Pengingat aturan 20-20-20 menggunakan WorkManager dan notifikasi Android.
-- Simulasi persepsi warna dengan lima pelat titik berwarna orisinal, input jawaban, dan ringkasan respons sesi; simulasi ini tidak menilai normal/abnormal dan bukan tes Ishihara resmi.\n- Ringkasan status edukatif untuk modul.
+- Modul Ishihara dengan model domain, gerbang lisensi/validasi, alur jawaban, dan rekap mentah. **Modul tetap terkunci** karena repository belum berisi pelat asli yang berlisensi, identitas edisi, kunci jawaban, dan bukti validasi penyajian layar.
 
-## Modul yang menunggu aset resmi
-Tes Ishihara belum diaktifkan karena belum ada pelat asli yang berlisensi dan tervalidasi di repository. Aplikasi sengaja tidak membuat pelat acak atau tiruan.
+## Ishihara: kebijakan materi
 
-## Batasan dan keselamatan
+Tidak ada pelat pseudo-Ishihara, pola acak, atau angka sintetis yang dipakai sebagai tes medis. Materi hanya boleh ditambahkan setelah pemilik proyek memastikan hak distribusi digital, sumber dan edisi resmi, kunci jawaban yang cocok dengan edisi, serta bukti validasi untuk penyajian pada layar ponsel. Unit test menggunakan fixture teks internal saja; fixture tersebut bukan materi pemeriksaan.
+
+Aplikasi hanya menghitung jawaban benar, salah, ragu-ragu, dan tidak dijawab. Aplikasi tidak mengubah skor menjadi kategori normal/abnormal atau diagnosis.
+
+## CFF/FFF: batasan dan keselamatan
+
+- Target frekuensi adalah jadwal perangkat lunak, bukan pengukuran frekuensi cahaya fisik.
+- Satu siklus hitam-putih membutuhkan setidaknya dua refresh; batas teoritis alternasi adalah sekitar setengah refresh rate. Contoh: 60 Hz → 30 Hz; 90 Hz → 45 Hz; 120 Hz → 60 Hz.
+- Frame terlewat, refresh rate adaptif, frame pacing Android, PWM, kecerahan, panel, mode hemat daya, dan beban sistem dapat menurunkan atau mengubah stimulus aktual.
+- Respons pengguna bersifat subjektif dan tidak boleh digunakan sendirian untuk menyimpulkan kelelahan mata atau kondisi medis.
+- Jangan menjalankan stimulasi berkedip bila memiliki epilepsi atau riwayat kejang yang dipicu cahaya. Hentikan jika timbul pusing, mual, sakit kepala, atau ketidaknyamanan.
+
+## Batasan umum
+
 - Hasil tidak menggantikan pemeriksaan dokter mata atau optometris.
-- Simulasi persepsi warna di aplikasi bukan tes Ishihara resmi dan tidak memiliki validitas klinis. Pemeriksaan diagnostik harus dilakukan dengan metode tervalidasi oleh tenaga kesehatan.
-- CFF melalui layar ponsel bersifat eksperimental. Refresh rate, frame pacing, PWM, kecerahan, dan karakteristik panel membatasi akurasi frekuensi kedipan fisik.
-- Estimasi jarak wajah memerlukan kalibrasi manual. Perubahan zoom, orientasi, kamera, posisi, atau pencahayaan dapat memengaruhi hasil.
-- Rentang pencahayaan pada aplikasi adalah panduan edukatif berdasarkan aktivitas, bukan standar medis, pengukuran klinis, atau batas diagnosis.
+- Pembacaan sensor cahaya ponsel bukan pengukuran terkalibrasi pada bidang kerja.
+- Estimasi jarak wajah dipengaruhi kamera, zoom, orientasi, posisi, dan pencahayaan.
 - Pengingat berkala WorkManager dapat tertunda oleh kebijakan baterai Android.
 
-## Target teknis
-- Minimum Android: 7.0 (API 24)
-- Bahasa: Kotlin
-- UI: Jetpack Compose
-- UI architecture: state-driven Compose; fitur kamera memakai CameraX + ML Kit on-device.
-- Java/JVM: 17
+## Target teknis dan versi
 
-## Build lokal
-Gunakan JDK 17, Android SDK 36, dan Gradle 8.13. Dari direktori repository jalankan:
+- Minimum Android: 7.0 (API 24)
+- Compile/Target SDK: 36
+- Bahasa/UI: Kotlin, Jetpack Compose
+- Arsitektur fitur Ishihara: domain + repository interface + ViewModel + Compose UI
+- JDK/JVM: 17
+- Android Gradle Plugin: 8.13.2
+- Kotlin: 2.2.21
+- Gradle: 8.13
+- Compose BOM: 2025.10.01
+- AndroidX Core KTX: 1.17.0
+- Activity Compose: 1.11.0
+- Lifecycle: 2.9.4
+- CameraX: 1.5.0
+- ML Kit Face Detection: 16.1.7
+- WorkManager: 2.10.5
+
+## Build dan unit test
+
+Gunakan JDK 17, Android SDK 36, dan Gradle 8.13. Dari direktori repository:
+
 ```bash
 gradle testDebugUnitTest
 gradle assembleDebug
 ```
-APK debug dihasilkan pada `app/build/outputs/apk/debug/app-debug.apk`. GitHub Actions menjalankan unit test dan mengunggah APK sebagai artifact `EyeCare-Pro-debug`.
 
-## Status validasi
-CI sebelumnya berhasil membangun APK dasar dan menjalankan unit test. Revisi 0.2.0 dan simulasi warna menunggu hasil CI terbaru. Fitur kamera, tampilan, notifikasi, sensor, dan animasi tetap memerlukan pengujian pada perangkat Android fisik sebelum dianggap siap rilis.
+APK debug dihasilkan di:
+
+```
+app/build/outputs/apk/debug/app-debug.apk
+```
+
+## Daftar uji perangkat
+
+1. Android 7.0/API 24: instalasi, pembukaan aplikasi, navigasi, sensor yang tersedia.
+2. Android 12/API 31 atau lebih baru: notifikasi dan izin kamera.
+3. Android terbaru yang tersedia: instalasi, rotasi, lifecycle, dan navigasi.
+4. Layar 60/90/120 Hz: refresh rate yang dilaporkan, batas teoritis CFF, mulai/henti, dan pencatatan respons.
+5. Refresh rate adaptif dan mode hemat daya: pastikan hasil tetap diberi label subjektif.
+6. Ishihara: pastikan layar menyatakan materi belum tersedia dan tidak menampilkan pelat sintetis.
+7. Kamera/sensor/notifikasi: izin ditolak, perangkat tanpa sensor cahaya, kamera tidak tersedia, dan aplikasi kembali dari background.
+8. Aksesibilitas: ukuran teks besar, kontras, TalkBack, dan orientasi layar.
+
+CI menjalankan unit test dan build APK. Pengujian pada perangkat fisik tetap wajib sebelum rilis.
