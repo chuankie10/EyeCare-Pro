@@ -2,10 +2,11 @@
 
 Aplikasi Android untuk edukasi dan pengamatan awal terkait kenyamanan penglihatan. **Aplikasi ini bukan alat diagnosis medis.**
 
-## Fitur pada build 0.3.0
+## Fitur pada build 0.4.0
 
 - Pemeriksaan pencahayaan sekitar melalui `Sensor.TYPE_LIGHT`, dengan rentang panduan terpisah untuk pekerjaan dominan layar (300–500 lux) dan membaca/menulis (500–750 lux). Angka tersebut merupakan panduan edukatif, bukan ambang medis.
 - Eksperimen CFF/FFF berbasis frame Compose, dengan target yang dibatasi secara teoritis oleh refresh rate yang dilaporkan perangkat. Pengguna mencatat apakah stimulus masih tampak berkedip, tampak menyatu, atau tidak pasti.
+- Durasi satu percobaan CFF/FFF dibatasi otomatis maksimal 10 detik. Sesi dibatalkan ketika Activity meninggalkan foreground dan tidak dilanjutkan otomatis.
 - Estimasi jarak wajah melalui kamera depan dan ML Kit Face Detection. Hasil merupakan perkiraan relatif yang memerlukan kalibrasi manual.
 - Pengingat aturan 20-20-20 menggunakan WorkManager dan notifikasi Android.
 - Modul Ishihara dengan model domain, gerbang lisensi/validasi, alur jawaban, opsi "ragu-ragu" dan "lewati", serta rekap mentah yang membedakan jawaban salah dan tidak dijawab. **Modul tetap terkunci** karena repository belum berisi pelat asli yang berlisensi, identitas edisi, kunci jawaban, dan bukti validasi penyajian layar.
@@ -21,6 +22,7 @@ Aplikasi hanya menghitung jawaban benar, salah, ragu-ragu, dan tidak dijawab. Ap
 - Target frekuensi adalah jadwal perangkat lunak, bukan pengukuran frekuensi cahaya fisik. Aplikasi memperbarui batas teoritis ketika Android melaporkan perubahan refresh rate layar; perubahan aktual tetap dapat terjadi di antara callback.
 - Satu siklus hitam-putih membutuhkan setidaknya dua refresh; batas teoritis alternasi adalah sekitar setengah refresh rate. Contoh: 60 Hz → 30 Hz; 90 Hz → 45 Hz; 120 Hz → 60 Hz.
 - Frame terlewat, refresh rate adaptif, frame pacing Android, PWM, kecerahan, panel, mode hemat daya, dan beban sistem dapat menurunkan atau mengubah stimulus aktual.
+- Satu percobaan dibatasi otomatis maksimal 10 detik; sesi yang masuk background dibatalkan dan tidak dilanjutkan otomatis. Batas ini adalah pengamanan aplikasi, bukan protokol klinis tervalidasi.
 - Respons pengguna bersifat subjektif dan tidak boleh digunakan sendirian untuk menyimpulkan kelelahan mata atau kondisi medis.
 - Jangan menjalankan stimulasi berkedip bila memiliki epilepsi atau riwayat kejang yang dipicu cahaya. Hentikan jika timbul pusing, mual, sakit kepala, atau ketidaknyamanan.
 
@@ -39,15 +41,17 @@ Aplikasi hanya menghitung jawaban benar, salah, ragu-ragu, dan tidak dijawab. Ap
 - Arsitektur fitur Ishihara: domain + repository interface + ViewModel + Compose UI
 - JDK/JVM: 17
 - Android Gradle Plugin: 8.13.2
-- Kotlin Gradle plugin + Compose compiler plugin: 2.3.10 (compatible with AGP 8.13.x and Gradle 8.13)
+- Kotlin Gradle plugin + Compose compiler plugin: 2.3.10
 - Gradle: 8.13
 - Compose BOM: 2025.09.01 (Compose 1.9.2 stable)
 - AndroidX Core KTX: 1.17.0
 - Activity Compose: 1.11.0
 - Lifecycle: 2.9.4
-- CameraX: 1.5.0
+- CameraX: 1.5.3
 - ML Kit Face Detection: 16.1.7
 - WorkManager: 2.10.5
+
+Versi Kotlin 2.3.10 didokumentasikan kompatibel dengan Gradle 7.6.3–9.0 dan AGP 8.2.2–9.0. AGP 8.13.2 mensyaratkan Gradle 8.13 dan JDK 17. CameraX 1.5.3 dipilih sebagai patch yang lebih baru daripada 1.5.0. Versi-versi ini dipatok agar build dapat direproduksi, bukan klaim bahwa semuanya merupakan rilis paling baru.
 
 ## Build dan unit test
 
@@ -69,10 +73,11 @@ app/build/outputs/apk/debug/app-debug.apk
 1. Android 7.0/API 24: instalasi, pembukaan aplikasi, navigasi, sensor yang tersedia.
 2. Android 12/API 31 atau lebih baru: notifikasi dan izin kamera.
 3. Android terbaru yang tersedia: instalasi, rotasi, lifecycle, dan navigasi.
-4. Layar 60/90/120 Hz: refresh rate yang dilaporkan, batas teoritis CFF, mulai/henti, dan pencatatan respons.
-5. Refresh rate adaptif dan mode hemat daya: pastikan hasil tetap diberi label subjektif.
-6. Ishihara: pastikan layar menyatakan materi belum tersedia dan tidak menampilkan pelat sintetis.
-7. Kamera/sensor/notifikasi: izin ditolak, perangkat tanpa sensor cahaya, kamera tidak tersedia, dan aplikasi kembali dari background.
-8. Aksesibilitas: ukuran teks besar, kontras, TalkBack, dan orientasi layar.
+4. Layar 60/90/120 Hz: refresh rate yang dilaporkan, batas teoritis CFF, mulai/henti, timeout 10 detik, dan pencatatan respons.
+5. Refresh rate adaptif dan mode hemat daya: pastikan sesi dihentikan bila batas baru tidak mendukung frekuensi yang sedang berjalan.
+6. Masuk background saat CFF berjalan: pastikan stimulasi berhenti dan tidak otomatis berjalan kembali setelah resume.
+7. Ishihara: pastikan layar menyatakan materi belum tersedia dan tidak menampilkan pelat sintetis.
+8. Kamera/sensor/notifikasi: izin ditolak, perangkat tanpa sensor cahaya, kamera tidak tersedia, dan aplikasi kembali dari background.
+9. Aksesibilitas: ukuran teks besar, kontras, TalkBack, dan orientasi layar.
 
 CI menjalankan unit test dan build APK. Pengujian pada perangkat fisik tetap wajib sebelum rilis.
