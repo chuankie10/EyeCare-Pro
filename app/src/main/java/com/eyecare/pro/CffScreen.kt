@@ -28,11 +28,17 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.eyecare.pro.domain.cff.CffStimulusTiming
 import com.eyecare.pro.domain.cff.FlickerPerception
 import com.eyecare.pro.presentation.cff.CffViewModel
+import kotlinx.coroutines.delay
 import java.util.Locale
+
+private const val MAX_TRIAL_DURATION_MILLIS = 10_000L
 
 @Composable
 fun CffScreen(
@@ -41,6 +47,7 @@ fun CffScreen(
     viewModel: CffViewModel = viewModel()
 ) {
     val state by viewModel.uiState.collectAsState()
+    val lifecycleOwner = LocalLifecycleOwner.current
     val safeRefreshRate = displayRefreshRateHz.takeIf { it.isFinite() && it > 0f } ?: 60f
     val maxFrequencyHz = remember(safeRefreshRate) {
         CffStimulusTiming.maxAlternatingFrequencyHz(safeRefreshRate)
@@ -50,8 +57,25 @@ fun CffScreen(
     LaunchedEffect(maxFrequencyHz) {
         viewModel.updateFrequencyLimit(maxFrequencyHz)
     }
-    DisposableEffect(viewModel) {
-        onDispose { viewModel.cancelSession() }
+    DisposableEffect(lifecycleOwner, viewModel) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_STOP) {
+                // Discard an interrupted run; never resume flashing after returning from background.
+                viewModel.cancelSession()
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+            viewModel.cancelSession()
+        }
+    }
+
+    LaunchedEffect(state.isRunning) {
+        if (state.isRunning) {
+            delay(MAX_TRIAL_DURATION_MILLIS)
+            viewModel.stopAutomatically()
+        }
     }
 
     var flashOn by remember { mutableStateOf(false) }
@@ -133,7 +157,7 @@ fun CffScreen(
         Text(
             "Peringatan keselamatan: jangan jalankan stimulasi berkedip jika Anda memiliki " +
                 "epilepsi atau riwayat kejang yang dipicu cahaya. Hentikan segera jika pusing, " +
-                "mual, sakit kepala, atau tidak nyaman."
+                "mual, sakit kepala, atau tidak nyaman. Setiap percobaan dibatasi maksimal 10 detik."
         )
         Row(verticalAlignment = Alignment.CenterVertically) {
             Checkbox(
@@ -152,6 +176,10 @@ fun CffScreen(
             enabled = state.isRunning,
             onClick = viewModel::stop
         ) { Text("Hentikan stimulasi") }
+
+        state.statusMessage?.let { message ->
+            Text(message, color = MaterialTheme.colorScheme.error)
+        }
 
         if (state.awaitingObservation) {
             Text(
