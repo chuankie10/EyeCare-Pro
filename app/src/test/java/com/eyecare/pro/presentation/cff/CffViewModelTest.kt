@@ -32,6 +32,23 @@ class CffViewModelTest {
         assertFalse(viewModel.uiState.value.awaitingObservation)
     }
 
+    @Test fun automaticStopEndsStimulusAndStillAllowsObservation() {
+        val viewModel = CffViewModel()
+        viewModel.setWarningAcknowledged(true)
+        viewModel.start(60f)
+
+        viewModel.stopAutomatically()
+
+        assertFalse(viewModel.uiState.value.isRunning)
+        assertTrue(viewModel.uiState.value.awaitingObservation)
+        assertTrue(viewModel.uiState.value.automaticallyStopped)
+        assertTrue(viewModel.uiState.value.statusMessage!!.contains("10 detik"))
+
+        val observation = viewModel.recordObservation(FlickerPerception.UNCERTAIN)
+        assertEquals(FlickerPerception.UNCERTAIN, observation!!.perception)
+        assertFalse(viewModel.uiState.value.awaitingObservation)
+    }
+
     @Test fun targetCannotChangeWhileStimulusOrObservationIsPending() {
         val viewModel = CffViewModel()
         viewModel.setWarningAcknowledged(true)
@@ -87,5 +104,6 @@ class CffViewModelTest {
         viewModel.updateFrequencyLimit(20f)
         assertFalse(viewModel.uiState.value.isRunning)
         assertNull(viewModel.uiState.value.lastStimulusFrequencyHz)
+        assertTrue(viewModel.uiState.value.statusMessage!!.contains("refresh rate"))
     }
 }
