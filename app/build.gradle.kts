@@ -12,8 +12,8 @@ android {
         applicationId = "com.eyecare.pro"
         minSdk = 24
         targetSdk = 36
-        versionCode = 3
-        versionName = "0.3.0"
+        versionCode = 4
+        versionName = "0.4.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
@@ -62,10 +62,10 @@ dependencies {
     implementation("androidx.compose.material3:material3")
     implementation("androidx.compose.material:material-icons-extended")
 
-    // Front-camera face landmarks for approximate, user-calibrated distance estimation.
-    implementation("androidx.camera:camera-camera2:1.5.0")
-    implementation("androidx.camera:camera-lifecycle:1.5.0")
-    implementation("androidx.camera:camera-view:1.5.0")
+    // CameraX 1.5.3 includes fixes released after 1.5.0, including older-device PreviewView fixes.
+    implementation("androidx.camera:camera-camera2:1.5.3")
+    implementation("androidx.camera:camera-lifecycle:1.5.3")
+    implementation("androidx.camera:camera-view:1.5.3")
     implementation("com.google.mlkit:face-detection:16.1.7")
     implementation("androidx.work:work-runtime-ktx:2.10.5")
     debugImplementation("androidx.compose.ui:ui-tooling")
