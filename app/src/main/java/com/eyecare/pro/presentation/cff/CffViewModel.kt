@@ -16,7 +16,9 @@ data class CffUiState(
     val awaitingObservation: Boolean = false,
     val lastStimulusFrequencyHz: Float? = null,
     val lastStimulusRefreshRateHz: Float? = null,
-    val lastObservation: CffObservation? = null
+    val lastObservation: CffObservation? = null,
+    val automaticallyStopped: Boolean = false,
+    val statusMessage: String? = null
 )
 
 class CffViewModel : ViewModel() {
@@ -43,7 +45,13 @@ class CffViewModel : ViewModel() {
             isRunning = current.isRunning && !stimulusExceedsNewLimit,
             awaitingObservation = current.awaitingObservation && !stimulusExceedsNewLimit,
             lastStimulusFrequencyHz = if (stimulusExceedsNewLimit) null else current.lastStimulusFrequencyHz,
-            lastStimulusRefreshRateHz = if (stimulusExceedsNewLimit) null else current.lastStimulusRefreshRateHz
+            lastStimulusRefreshRateHz = if (stimulusExceedsNewLimit) null else current.lastStimulusRefreshRateHz,
+            automaticallyStopped = if (stimulusExceedsNewLimit) false else current.automaticallyStopped,
+            statusMessage = if (stimulusExceedsNewLimit) {
+                "Stimulasi dihentikan karena batas refresh rate yang dilaporkan perangkat berubah."
+            } else {
+                current.statusMessage
+            }
         )
     }
 
@@ -77,14 +85,33 @@ class CffViewModel : ViewModel() {
             awaitingObservation = false,
             lastStimulusFrequencyHz = target,
             lastStimulusRefreshRateHz = reportedDisplayRefreshRateHz,
-            lastObservation = null
+            lastObservation = null,
+            automaticallyStopped = false,
+            statusMessage = null
         )
     }
 
     fun stop() {
         val current = _uiState.value
         if (!current.isRunning) return
-        _uiState.value = current.copy(isRunning = false, awaitingObservation = true)
+        _uiState.value = current.copy(
+            isRunning = false,
+            awaitingObservation = true,
+            automaticallyStopped = false,
+            statusMessage = null
+        )
+    }
+
+    /** Called by the UI's bounded trial timer; keeps the observation flow available. */
+    fun stopAutomatically() {
+        val current = _uiState.value
+        if (!current.isRunning) return
+        _uiState.value = current.copy(
+            isRunning = false,
+            awaitingObservation = true,
+            automaticallyStopped = true,
+            statusMessage = "Stimulasi otomatis dihentikan setelah batas 10 detik."
+        )
     }
 
     fun recordObservation(perception: FlickerPerception): CffObservation? {
@@ -110,7 +137,9 @@ class CffViewModel : ViewModel() {
             isRunning = false,
             awaitingObservation = false,
             lastStimulusFrequencyHz = null,
-            lastStimulusRefreshRateHz = null
+            lastStimulusRefreshRateHz = null,
+            automaticallyStopped = false,
+            statusMessage = null
         )
     }
 
