@@ -1,7 +1,6 @@
 package com.eyecare.pro.presentation.ishihara
 
 import androidx.lifecycle.ViewModel
-import com.eyecare.pro.data.ishihara.NoLicensedIshiharaDatasetRepository
 import com.eyecare.pro.domain.ishihara.IshiharaDataset
 import com.eyecare.pro.domain.ishihara.IshiharaDatasetRepository
 import com.eyecare.pro.domain.ishihara.IshiharaPlate
@@ -22,8 +21,12 @@ sealed interface IshiharaUiState {
     data class Completed(val sourceTitle: String, val score: IshiharaScore) : IshiharaUiState
 }
 
+/**
+ * Presentation depends only on the domain repository contract.
+ * The concrete, safe production repository is supplied by the app composition root.
+ */
 class IshiharaViewModel(
-    private val repository: IshiharaDatasetRepository = NoLicensedIshiharaDatasetRepository()
+    private val repository: IshiharaDatasetRepository
 ) : ViewModel() {
     private val _uiState = MutableStateFlow<IshiharaUiState>(
         IshiharaUiState.Unavailable(DEFAULT_UNAVAILABLE_MESSAGE)
@@ -37,7 +40,11 @@ class IshiharaViewModel(
     }
 
     fun startOrShowUnavailable() {
-        val dataset = repository.loadVerifiedDataset()?.takeIf { it.isEligibleForUse() }
+        // A missing, invalid, or failing content source must fail closed, never create synthetic plates.
+        val dataset = runCatching { repository.loadVerifiedDataset() }
+            .getOrNull()
+            ?.takeIf { it.isEligibleForUse() }
+
         if (dataset == null) {
             activeDataset = null
             answersByPlateId.clear()

@@ -21,13 +21,12 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.viewmodel.compose.viewModel
 import com.eyecare.pro.domain.ishihara.IshiharaScoringEngine
 import com.eyecare.pro.presentation.ishihara.IshiharaUiState
 import com.eyecare.pro.presentation.ishihara.IshiharaViewModel
 
 @Composable
-fun IshiharaScreen(viewModel: IshiharaViewModel = viewModel()) {
+fun IshiharaScreen(viewModel: IshiharaViewModel) {
     val state by viewModel.uiState.collectAsState()
 
     Column(

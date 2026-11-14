@@ -2,28 +2,34 @@
 
 Aplikasi Android untuk edukasi dan pengamatan awal terkait kenyamanan penglihatan. **Aplikasi ini bukan alat diagnosis medis.**
 
-## Fitur pada build 0.4.0
+## Fitur pada build 0.5.0
 
-- Pemeriksaan pencahayaan sekitar melalui `Sensor.TYPE_LIGHT`, dengan rentang panduan terpisah untuk pekerjaan dominan layar (300–500 lux) dan membaca/menulis (500–750 lux). Angka tersebut merupakan panduan edukatif, bukan ambang medis.
-- Eksperimen CFF/FFF berbasis frame Compose, dengan target yang dibatasi secara teoritis oleh refresh rate yang dilaporkan perangkat. Pengguna mencatat apakah stimulus masih tampak berkedip, tampak menyatu, atau tidak pasti.
-- Durasi satu percobaan CFF/FFF dibatasi otomatis maksimal 10 detik. Sesi dibatalkan ketika Activity meninggalkan foreground dan tidak dilanjutkan otomatis.
+- Pemeriksaan pencahayaan sekitar melalui `Sensor.TYPE_LIGHT`; rentang yang ditampilkan merupakan panduan edukatif, bukan ambang medis atau hasil pengukuran terkalibrasi.
+- Eksperimen CFF/FFF berbasis frame Compose. Target frekuensi dibatasi secara teoritis oleh refresh rate yang dilaporkan perangkat; pengguna mencatat persepsi subjektif.
+- Satu percobaan CFF/FFF berhenti otomatis setelah maksimal 10 detik. Sesi dibatalkan pada `ON_PAUSE`/background dan tidak dilanjutkan otomatis.
 - Estimasi jarak wajah melalui kamera depan dan ML Kit Face Detection. Hasil merupakan perkiraan relatif yang memerlukan kalibrasi manual.
 - Pengingat aturan 20-20-20 menggunakan WorkManager dan notifikasi Android.
-- Modul Ishihara dengan model domain, gerbang lisensi/validasi, alur jawaban, opsi "ragu-ragu" dan "lewati", serta rekap mentah yang membedakan jawaban salah dan tidak dijawab. **Modul tetap terkunci** karena repository belum berisi pelat asli yang berlisensi, identitas edisi, kunci jawaban, dan bukti validasi penyajian layar.
+- Modul Ishihara memiliki model domain, repository contract, ViewModel, alur jawaban, opsi ragu-ragu/lewati, dan rekap mentah benar/salah/ragu-ragu/tidak dijawab. **Modul produksi tetap terkunci** sampai pelat asli berlisensi, edisi, kunci jawaban, dan bukti validasi penyajian layar tersedia.
 
-## Ishihara: kebijakan materi
+## Arsitektur Ishihara
 
-Tidak ada pelat pseudo-Ishihara, pola acak, atau angka sintetis yang dipakai sebagai tes medis. Materi hanya boleh ditambahkan setelah pemilik proyek memastikan hak distribusi digital, sumber dan edisi resmi, kunci jawaban yang cocok dengan edisi, serta bukti validasi untuk penyajian pada layar ponsel. Unit test menggunakan fixture teks internal saja; fixture tersebut bukan materi pemeriksaan.
+- Domain mendefinisikan `IshiharaDatasetRepository`, model dataset/pelat, validasi metadata, dan mesin scoring.
+- Data menyediakan `NoLicensedIshiharaDatasetRepository` sebagai implementasi aman yang mengembalikan `null` selama materi resmi belum disediakan.
+- ViewModel hanya bergantung pada kontrak domain, bukan kelas konkret di lapisan data.
+- Factory di paket `di` menghubungkan implementasi data ke ViewModel pada composition root `MainActivity`.
+- UI Compose menampilkan status unavailable jika dataset tidak tersedia atau aset tidak dapat dimuat.
 
-Aplikasi hanya menghitung jawaban benar, salah, ragu-ragu, dan tidak dijawab. Aplikasi tidak mengubah skor menjadi kategori normal/abnormal atau diagnosis.
+Tidak ada pelat pseudo-Ishihara, pola acak, atau angka sintetis yang dipakai sebagai tes medis. Materi hanya boleh ditambahkan setelah hak distribusi digital, sumber dan edisi resmi, kunci jawaban yang cocok, serta bukti validasi tampilan ponsel ditinjau. Unit test memakai fixture internal yang bukan materi pemeriksaan.
+
+Aplikasi hanya menghitung respons mentah. Skor tidak diubah menjadi kategori normal/abnormal atau diagnosis. Pemeriksaan warna yang bermakna secara klinis harus mengikuti prosedur yang tervalidasi dan dilakukan dengan kondisi penyajian yang sesuai.
 
 ## CFF/FFF: batasan dan keselamatan
 
-- Target frekuensi adalah jadwal perangkat lunak, bukan pengukuran frekuensi cahaya fisik. Aplikasi memperbarui batas teoritis ketika Android melaporkan perubahan refresh rate layar; perubahan aktual tetap dapat terjadi di antara callback.
-- Satu siklus hitam-putih membutuhkan setidaknya dua refresh; batas teoritis alternasi adalah sekitar setengah refresh rate. Contoh: 60 Hz → 30 Hz; 90 Hz → 45 Hz; 120 Hz → 60 Hz.
-- Frame terlewat, refresh rate adaptif, frame pacing Android, PWM, kecerahan, panel, mode hemat daya, dan beban sistem dapat menurunkan atau mengubah stimulus aktual.
-- Satu percobaan dibatasi otomatis maksimal 10 detik; sesi yang masuk background dibatalkan dan tidak dilanjutkan otomatis. Batas ini adalah pengamanan aplikasi, bukan protokol klinis tervalidasi.
-- Respons pengguna bersifat subjektif dan tidak boleh digunakan sendirian untuk menyimpulkan kelelahan mata atau kondisi medis.
+- Target frekuensi adalah jadwal perangkat lunak, bukan pengukuran frekuensi cahaya fisik.
+- Satu siklus hitam-putih memerlukan setidaknya dua refresh; batas teoritis alternasi sekitar setengah refresh rate: 60 Hz → 30 Hz, 90 Hz → 45 Hz, 120 Hz → 60 Hz.
+- Frame terlewat, refresh rate adaptif, frame pacing Android, PWM, kecerahan, panel, mode hemat daya, dan beban sistem dapat mengubah stimulus aktual.
+- Sesi dibatasi maksimal 10 detik dan dibatalkan pada `ON_PAUSE` atau saat composable dilepas. Batas ini adalah pengamanan aplikasi, bukan protokol klinis tervalidasi.
+- Respons bersifat subjektif dan tidak boleh digunakan sendirian untuk menyimpulkan kelelahan mata atau kondisi medis.
 - Jangan menjalankan stimulasi berkedip bila memiliki epilepsi atau riwayat kejang yang dipicu cahaya. Hentikan jika timbul pusing, mual, sakit kepala, atau ketidaknyamanan.
 
 ## Batasan umum
@@ -33,17 +39,17 @@ Aplikasi hanya menghitung jawaban benar, salah, ragu-ragu, dan tidak dijawab. Ap
 - Estimasi jarak wajah dipengaruhi kamera, zoom, orientasi, posisi, dan pencahayaan.
 - Pengingat berkala WorkManager dapat tertunda oleh kebijakan baterai Android.
 
-## Target teknis dan versi
+## Toolchain dan target Android
 
-- Minimum Android: 7.0 (API 24)
-- Compile/Target SDK: 36
-- Bahasa/UI: Kotlin, Jetpack Compose
-- Arsitektur fitur Ishihara: domain + repository interface + ViewModel + Compose UI
+- Minimum Android: 7.0 / API 24
+- Compile SDK: 37
+- Target SDK: 36 (dipertahankan sampai perilaku target API 37 diuji)
 - JDK/JVM: 17
-- Android Gradle Plugin: 8.13.2
-- Kotlin Gradle plugin + Compose compiler plugin: 2.3.10
-- Gradle: 8.13
-- Compose BOM: 2025.09.01 (Compose 1.9.2 stable)
+- Android Gradle Plugin: 9.3.1
+- Gradle: 9.5.0
+- Kotlin Gradle plugin: 2.4.21 melalui buildscript classpath untuk AGP built-in Kotlin
+- Compose compiler plugin: 2.4.21
+- Compose BOM: 2025.09.01 (Compose 1.9.2)
 - AndroidX Core KTX: 1.17.0
 - Activity Compose: 1.11.0
 - Lifecycle: 2.9.4
@@ -51,11 +57,11 @@ Aplikasi hanya menghitung jawaban benar, salah, ragu-ragu, dan tidak dijawab. Ap
 - ML Kit Face Detection: 16.1.7
 - WorkManager: 2.10.5
 
-Versi Kotlin 2.3.10 didokumentasikan kompatibel dengan Gradle 7.6.3–9.0 dan AGP 8.2.2–9.0. AGP 8.13.2 mensyaratkan Gradle 8.13 dan JDK 17. CameraX 1.5.3 dipilih sebagai patch yang lebih baru daripada 1.5.0. Versi-versi ini dipatok agar build dapat direproduksi, bukan klaim bahwa semuanya merupakan rilis paling baru.
+AGP 9.3 mendukung compile API 37 dan memerlukan Gradle 9.5.0 serta JDK 17. Kotlin 2.4.21 didokumentasikan kompatibel penuh dengan Gradle sampai 9.7.0 dan AGP sampai 9.3.1. AGP 9 menggunakan built-in Kotlin, sehingga plugin `org.jetbrains.kotlin.android` dihapus; Compose tetap memakai plugin compiler yang versinya sama dengan Kotlin. Versi dependency dipatok untuk build yang dapat direproduksi, bukan klaim bahwa semuanya merupakan rilis terbaru.
 
 ## Build dan unit test
 
-Gunakan JDK 17, Android SDK 36, dan Gradle 8.13. Dari direktori repository:
+Gunakan JDK 17, Android SDK Platform 37, Build Tools 36.0.0, dan Gradle 9.5.0. Dari direktori repository:
 
 ```bash
 gradle testDebugUnitTest
@@ -70,14 +76,14 @@ app/build/outputs/apk/debug/app-debug.apk
 
 ## Daftar uji perangkat
 
-1. Android 7.0/API 24: instalasi, pembukaan aplikasi, navigasi, sensor yang tersedia.
-2. Android 12/API 31 atau lebih baru: notifikasi dan izin kamera.
-3. Android terbaru yang tersedia: instalasi, rotasi, lifecycle, dan navigasi.
+1. Android 7.0/API 24: instalasi, pembukaan aplikasi, navigasi, dan sensor yang tersedia.
+2. Android 12/API 31 atau lebih baru: notifikasi, izin kamera, dan perilaku foreground/background.
+3. Android 17/API 37: instalasi, navigasi, rotasi, lifecycle, dan kompatibilitas runtime; target SDK tetap 36 pada build ini.
 4. Layar 60/90/120 Hz: refresh rate yang dilaporkan, batas teoritis CFF, mulai/henti, timeout 10 detik, dan pencatatan respons.
 5. Refresh rate adaptif dan mode hemat daya: pastikan sesi dihentikan bila batas baru tidak mendukung frekuensi yang sedang berjalan.
-6. Masuk background saat CFF berjalan: pastikan stimulasi berhenti dan tidak otomatis berjalan kembali setelah resume.
-7. Ishihara: pastikan layar menyatakan materi belum tersedia dan tidak menampilkan pelat sintetis.
+6. Tekan Home, buka aplikasi lain, atau kunci layar saat CFF berjalan: pastikan stimulasi berhenti pada `ON_PAUSE` dan tidak berjalan kembali setelah resume.
+7. Ishihara: layar menyatakan materi belum tersedia dan tidak menampilkan pelat sintetis.
 8. Kamera/sensor/notifikasi: izin ditolak, perangkat tanpa sensor cahaya, kamera tidak tersedia, dan aplikasi kembali dari background.
 9. Aksesibilitas: ukuran teks besar, kontras, TalkBack, dan orientasi layar.
 
-CI menjalankan unit test dan build APK. Pengujian pada perangkat fisik tetap wajib sebelum rilis.
+CI menjalankan unit test dan build APK pada SDK API 37. Pengujian pada perangkat fisik tetap wajib sebelum rilis.

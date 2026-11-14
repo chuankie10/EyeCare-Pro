@@ -35,7 +35,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.eyecare.pro.data.ishihara.NoLicensedIshiharaDatasetRepository
+import com.eyecare.pro.di.IshiharaViewModelFactory
 import com.eyecare.pro.domain.cff.CffObservation
+import com.eyecare.pro.presentation.ishihara.IshiharaViewModel
 import java.util.Locale
 
 private enum class AppPage { HOME, ENVIRONMENT, ISHIHARA, CFF, FACE, REMINDER, RESULTS }
@@ -134,6 +138,9 @@ private fun EyeCareApp(
     sensorAvailable: Boolean,
     displayRefreshRateHz: Float
 ) {
+    val ishiharaViewModel: IshiharaViewModel = viewModel(
+        factory = IshiharaViewModelFactory(NoLicensedIshiharaDatasetRepository())
+    )
     var page by androidx.compose.runtime.remember { mutableStateOf(AppPage.HOME) }
     var lastCffObservation by androidx.compose.runtime.remember { mutableStateOf<CffObservation?>(null) }
     var lastDistanceCm by androidx.compose.runtime.remember { mutableStateOf<Float?>(null) }
@@ -170,7 +177,7 @@ private fun EyeCareApp(
                 )
             }
             AppPage.ENVIRONMENT -> EnvironmentScreen(lux, sensorAvailable, lightTask) { lightTask = it }
-            AppPage.ISHIHARA -> IshiharaScreen()
+            AppPage.ISHIHARA -> IshiharaScreen(ishiharaViewModel)
             AppPage.CFF -> CffScreen(
                 displayRefreshRateHz = displayRefreshRateHz,
                 onResult = { lastCffObservation = it }

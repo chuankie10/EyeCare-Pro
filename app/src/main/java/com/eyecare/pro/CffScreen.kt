@@ -59,8 +59,8 @@ fun CffScreen(
     }
     DisposableEffect(lifecycleOwner, viewModel) {
         val observer = LifecycleEventObserver { _, event ->
-            if (event == Lifecycle.Event.ON_STOP) {
-                // Discard an interrupted run; never resume flashing after returning from background.
+            if (event == Lifecycle.Event.ON_PAUSE || event == Lifecycle.Event.ON_STOP) {
+                // Cancel as soon as the Activity pauses; ON_STOP is a second defensive boundary.
                 viewModel.cancelSession()
             }
         }

@@ -1,5 +1,6 @@
 package com.eyecare.pro.presentation.ishihara
 
+import com.eyecare.pro.data.ishihara.NoLicensedIshiharaDatasetRepository
 import com.eyecare.pro.domain.ishihara.IshiharaDataset
 import com.eyecare.pro.domain.ishihara.IshiharaDatasetRepository
 import com.eyecare.pro.domain.ishihara.IshiharaPlate
@@ -67,6 +68,17 @@ class IshiharaViewModelTest {
     }
 
     @Test fun defaultRepositoryKeepsTestUnavailable() {
-        assertTrue(IshiharaViewModel().uiState.value is IshiharaUiState.Unavailable)
+        val viewModel = IshiharaViewModel(NoLicensedIshiharaDatasetRepository())
+        assertTrue(viewModel.uiState.value is IshiharaUiState.Unavailable)
+    }
+
+    @Test fun repositoryFailureFailsClosedWithoutCrashing() {
+        val repository = object : IshiharaDatasetRepository {
+            override fun loadVerifiedDataset(): IshiharaDataset? {
+                error("content store unavailable")
+            }
+        }
+        val viewModel = IshiharaViewModel(repository)
+        assertTrue(viewModel.uiState.value is IshiharaUiState.Unavailable)
     }
 }

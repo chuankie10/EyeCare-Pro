@@ -1,19 +1,20 @@
 plugins {
     id("com.android.application")
-    id("org.jetbrains.kotlin.android")
+    // Kotlin compilation is provided by AGP 9 built-in Kotlin support.
     id("org.jetbrains.kotlin.plugin.compose")
 }
 
 android {
     namespace = "com.eyecare.pro"
-    compileSdk = 36
+    compileSdk = 37
 
     defaultConfig {
         applicationId = "com.eyecare.pro"
         minSdk = 24
+        // Keep target 36 until API 37 target-behavior changes are device-tested.
         targetSdk = 36
-        versionCode = 4
-        versionName = "0.4.0"
+        versionCode = 5
+        versionName = "0.5.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
@@ -48,6 +49,7 @@ android {
 }
 
 dependencies {
+    // Pinned BOM for reproducible Compose dependency resolution.
     val composeBom = platform("androidx.compose:compose-bom:2025.09.01")
     implementation(composeBom)
     androidTestImplementation(composeBom)
@@ -62,7 +64,6 @@ dependencies {
     implementation("androidx.compose.material3:material3")
     implementation("androidx.compose.material:material-icons-extended")
 
-    // CameraX 1.5.3 includes fixes released after 1.5.0, including older-device PreviewView fixes.
     implementation("androidx.camera:camera-camera2:1.5.3")
     implementation("androidx.camera:camera-lifecycle:1.5.3")
     implementation("androidx.camera:camera-view:1.5.3")
