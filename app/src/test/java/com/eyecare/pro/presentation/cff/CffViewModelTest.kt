@@ -8,17 +8,25 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class CffViewModelTest {
-    @Test fun startRequiresSafetyAcknowledgement() {
+    @Test fun startRequiresSafetyAcknowledgementAndNoKnownPhotosensitivityRisk() {
         val viewModel = CffViewModel()
         viewModel.start(60f)
         assertFalse(viewModel.uiState.value.isRunning)
+
+        viewModel.setWarningAcknowledged(true)
+        viewModel.start(60f)
+        assertFalse(viewModel.uiState.value.isRunning)
+
+        viewModel.setNoKnownPhotosensitivityRiskConfirmed(true)
+        viewModel.start(60f)
+        assertTrue(viewModel.uiState.value.isRunning)
     }
 
     @Test fun startCapturesFrequencyAndRefreshRateAndStopAllowsObservation() {
         val viewModel = CffViewModel()
         viewModel.updateFrequencyLimit(45f)
         viewModel.setTargetFrequency(18f)
-        viewModel.setWarningAcknowledged(true)
+        viewModel.acknowledgeSafeUse()
         viewModel.start(90f)
         assertTrue(viewModel.uiState.value.isRunning)
         assertEquals(18f, viewModel.uiState.value.lastStimulusFrequencyHz!!, 0.001f)
@@ -34,7 +42,7 @@ class CffViewModelTest {
 
     @Test fun automaticStopEndsStimulusAndStillAllowsObservation() {
         val viewModel = CffViewModel()
-        viewModel.setWarningAcknowledged(true)
+        viewModel.acknowledgeSafeUse()
         viewModel.start(60f)
 
         viewModel.stopAutomatically()
@@ -51,7 +59,7 @@ class CffViewModelTest {
 
     @Test fun targetCannotChangeWhileStimulusOrObservationIsPending() {
         val viewModel = CffViewModel()
-        viewModel.setWarningAcknowledged(true)
+        viewModel.acknowledgeSafeUse()
         viewModel.setTargetFrequency(18f)
         viewModel.start(60f)
         viewModel.setTargetFrequency(24f)
@@ -66,7 +74,7 @@ class CffViewModelTest {
 
     @Test fun startClampsTargetToTheoreticalDisplayLimit() {
         val viewModel = CffViewModel()
-        viewModel.setWarningAcknowledged(true)
+        viewModel.acknowledgeSafeUse()
         viewModel.setTargetFrequency(55f)
         viewModel.start(60f)
         assertEquals(30f, viewModel.uiState.value.targetFrequencyHz, 0.001f)
@@ -74,7 +82,7 @@ class CffViewModelTest {
 
     @Test fun cancelSessionStopsStimulusAndClearsPendingObservation() {
         val viewModel = CffViewModel()
-        viewModel.setWarningAcknowledged(true)
+        viewModel.acknowledgeSafeUse()
         viewModel.start(60f)
         viewModel.stop()
         viewModel.cancelSession()
@@ -85,7 +93,7 @@ class CffViewModelTest {
 
     @Test fun cannotStartAgainUntilPendingObservationIsRecorded() {
         val viewModel = CffViewModel()
-        viewModel.setWarningAcknowledged(true)
+        viewModel.acknowledgeSafeUse()
         viewModel.start(60f)
         viewModel.stop()
         viewModel.start(60f)
@@ -97,7 +105,7 @@ class CffViewModelTest {
 
     @Test fun refreshRateDropBelowActiveStimulusCancelsTheRun() {
         val viewModel = CffViewModel()
-        viewModel.setWarningAcknowledged(true)
+        viewModel.acknowledgeSafeUse()
         viewModel.setTargetFrequency(25f)
         viewModel.start(60f)
         assertTrue(viewModel.uiState.value.isRunning)
@@ -105,5 +113,10 @@ class CffViewModelTest {
         assertFalse(viewModel.uiState.value.isRunning)
         assertNull(viewModel.uiState.value.lastStimulusFrequencyHz)
         assertTrue(viewModel.uiState.value.statusMessage!!.contains("refresh rate"))
+    }
+
+    private fun CffViewModel.acknowledgeSafeUse() {
+        setWarningAcknowledged(true)
+        setNoKnownPhotosensitivityRiskConfirmed(true)
     }
 }
