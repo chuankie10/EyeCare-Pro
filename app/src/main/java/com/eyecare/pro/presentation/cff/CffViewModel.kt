@@ -12,6 +12,7 @@ data class CffUiState(
     val targetFrequencyHz: Float = 12f,
     val maximumFrequencyHz: Float = 60f,
     val warningAcknowledged: Boolean = false,
+    val noKnownPhotosensitivityRiskConfirmed: Boolean = false,
     val isRunning: Boolean = false,
     val awaitingObservation: Boolean = false,
     val lastStimulusFrequencyHz: Float? = null,
@@ -70,13 +71,19 @@ class CffViewModel : ViewModel() {
         _uiState.value = current.copy(warningAcknowledged = acknowledged)
     }
 
+    fun setNoKnownPhotosensitivityRiskConfirmed(confirmed: Boolean) {
+        val current = _uiState.value
+        if (current.isRunning || current.awaitingObservation) return
+        _uiState.value = current.copy(noKnownPhotosensitivityRiskConfirmed = confirmed)
+    }
+
     fun start(reportedDisplayRefreshRateHz: Float) {
         if (!reportedDisplayRefreshRateHz.isFinite() || reportedDisplayRefreshRateHz <= 0f) return
         val maximum = CffStimulusTiming.maxAlternatingFrequencyHz(reportedDisplayRefreshRateHz)
         updateFrequencyLimit(maximum)
         val current = _uiState.value
-        if (!current.warningAcknowledged || current.isRunning || current.awaitingObservation ||
-            maximum < MIN_FREQUENCY_HZ
+        if (!current.warningAcknowledged || !current.noKnownPhotosensitivityRiskConfirmed ||
+            current.isRunning || current.awaitingObservation || maximum < MIN_FREQUENCY_HZ
         ) return
         val target = current.targetFrequencyHz.coerceIn(MIN_FREQUENCY_HZ, maximum)
         _uiState.value = current.copy(
