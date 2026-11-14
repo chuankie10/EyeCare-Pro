@@ -23,15 +23,14 @@ jobs:
           distribution: temurin
           java-version: '17'
 
-      - name: Set up Android SDK
-        uses: android-actions/setup-android@v3
-        with:
-          packages: platform-tools
-
-      - name: Install Android API 37
+      - name: Install Android API 37 from runner SDK
+        env:
+          ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
         run: |
-          yes | sdkmanager --licenses >/dev/null
-          sdkmanager "platforms;android-37" "build-tools;36.0.0"
+          SDKMANAGER="$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager"
+          "$SDKMANAGER" --list | grep -E "platforms;android-(36|37)"
+          yes | "$SDKMANAGER" --licenses >/dev/null
+          "$SDKMANAGER" "platforms;android-37" "build-tools;36.0.0"
 
       - name: Set up Gradle 9.5.0
         uses: gradle/actions/setup-gradle@v4
@@ -39,10 +38,12 @@ jobs:
           gradle-version: '9.5.0'
 
       - name: Verify toolchain
+        env:
+          ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
         run: |
           java -version
           gradle --version
-          sdkmanager --list_installed
+          "$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager" --list_installed
 
       - name: Run unit tests
         run: gradle testDebugUnitTest
