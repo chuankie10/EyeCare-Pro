@@ -2,7 +2,7 @@ name: Android CI
 
 on:
   push:
-    branches: [ main ]
+    branches: [ main, feature/ishihara-gate-cff-v2 ]
   pull_request:
     branches: [ main ]
   workflow_dispatch:
@@ -28,7 +28,7 @@ jobs:
           ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
         run: |
           SDKMANAGER="$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager"
-          "$SDKMANAGER" --list | grep -E "platforms;android-(36|37)"
+          "$SDKMANAGER" --list | grep -E "platforms;android-(36|37)" || true
           yes | "$SDKMANAGER" --licenses >/dev/null
           "$SDKMANAGER" "platforms;android-37" "build-tools;36.0.0"
 
