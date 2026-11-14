@@ -23,14 +23,14 @@ jobs:
           distribution: temurin
           java-version: '17'
 
-      - name: Install Android API 37 from runner SDK
+      - name: Install Android SDK Platform 37.0 from runner SDK
         env:
           ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
         run: |
           SDKMANAGER="$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager"
           "$SDKMANAGER" --list | grep -E "platforms;android-(36|37)"
           yes | "$SDKMANAGER" --licenses >/dev/null
-          "$SDKMANAGER" "platforms;android-37" "build-tools;36.0.0"
+          "$SDKMANAGER" "platforms;android-37.0" "build-tools;36.0.0"
 
       - name: Set up Gradle 9.5.0
         uses: gradle/actions/setup-gradle@v4
