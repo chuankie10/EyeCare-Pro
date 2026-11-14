@@ -5,8 +5,10 @@ import android.hardware.Sensor
 import android.hardware.SensorEvent
 import android.hardware.SensorEventListener
 import android.hardware.SensorManager
+import android.hardware.display.DisplayManager
 import android.os.Bundle
-import android.view.WindowManager
+import android.os.Handler
+import android.os.Looper
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.Arrangement
@@ -32,6 +34,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.eyecare.pro.data.ishihara.NoLicensedIshiharaDatasetRepository
+import com.eyecare.pro.di.IshiharaViewModelFactory
+import com.eyecare.pro.domain.cff.CffObservation
+import com.eyecare.pro.presentation.ishihara.IshiharaViewModel
 import java.util.Locale
 
 private enum class AppPage { HOME, ENVIRONMENT, ISHIHARA, CFF, FACE, REMINDER, RESULTS }
@@ -46,19 +53,38 @@ private fun LightCondition.presentation(lux: Float, task: LightTask): LightPrese
 
 class MainActivity : ComponentActivity(), SensorEventListener {
     private lateinit var sensorManager: SensorManager
+    private lateinit var displayManager: DisplayManager
     private var lightSensor: Sensor? = null
     private var currentLux by mutableStateOf<Float?>(null)
     private var sensorAvailable by mutableStateOf(true)
+    private var displayRefreshRateHz by mutableStateOf(60f)
+
+    private val displayListener = object : DisplayManager.DisplayListener {
+        override fun onDisplayAdded(displayId: Int) = Unit
+        override fun onDisplayRemoved(displayId: Int) = Unit
+
+        override fun onDisplayChanged(displayId: Int) {
+            @Suppress("DEPRECATION")
+            val defaultDisplayId = windowManager.defaultDisplay.displayId
+            if (displayId == defaultDisplayId) updateDisplayRefreshRate()
+        }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         sensorManager = getSystemService(Context.SENSOR_SERVICE) as SensorManager
+        displayManager = getSystemService(Context.DISPLAY_SERVICE) as DisplayManager
         lightSensor = sensorManager.getDefaultSensor(Sensor.TYPE_LIGHT)
         sensorAvailable = lightSensor != null
+        updateDisplayRefreshRate()
         setContent {
             MaterialTheme {
                 Surface(modifier = Modifier.fillMaxSize()) {
-                    EyeCareApp(lux = currentLux, sensorAvailable = sensorAvailable)
+                    EyeCareApp(
+                        lux = currentLux,
+                        sensorAvailable = sensorAvailable,
+                        displayRefreshRateHz = displayRefreshRateHz
+                    )
                 }
             }
         }
@@ -66,38 +92,47 @@ class MainActivity : ComponentActivity(), SensorEventListener {
 
     override fun onResume() {
         super.onResume()
+        displayManager.registerDisplayListener(displayListener, Handler(Looper.getMainLooper()))
+        updateDisplayRefreshRate()
         lightSensor?.let { sensorManager.registerListener(this, it, SensorManager.SENSOR_DELAY_NORMAL) }
     }
 
     override fun onPause() {
+        displayManager.unregisterDisplayListener(displayListener)
         sensorManager.unregisterListener(this)
-        window.attributes = window.attributes.apply {
-            screenBrightness = WindowManager.LayoutParams.BRIGHTNESS_OVERRIDE_NONE
-        }
         super.onPause()
+    }
+
+    @Suppress("DEPRECATION")
+    private fun updateDisplayRefreshRate() {
+        val defaultDisplay = windowManager.defaultDisplay
+        val reportedRate = displayManager.getDisplay(defaultDisplay.displayId)?.refreshRate
+            ?: defaultDisplay.refreshRate
+        displayRefreshRateHz = reportedRate.takeIf { it.isFinite() && it > 0f } ?: 60f
     }
 
     override fun onSensorChanged(event: SensorEvent) {
         if (event.sensor.type != Sensor.TYPE_LIGHT || event.values.isEmpty()) return
         val lux = event.values[0]
         if (!lux.isFinite()) return
-        val safeLux = lux.coerceAtLeast(0f)
-        currentLux = safeLux
-        val brightness = if (safeLux in 100f..400f) {
-            0.8f
-        } else {
-            WindowManager.LayoutParams.BRIGHTNESS_OVERRIDE_NONE
-        }
-        window.attributes = window.attributes.apply { screenBrightness = brightness }
+        // The sensor is informational only. Never override the user's system/display brightness.
+        currentLux = lux.coerceAtLeast(0f)
     }
 
     override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) = Unit
 }
 
 @Composable
-private fun EyeCareApp(lux: Float?, sensorAvailable: Boolean) {
+private fun EyeCareApp(
+    lux: Float?,
+    sensorAvailable: Boolean,
+    displayRefreshRateHz: Float
+) {
+    val ishiharaViewModel: IshiharaViewModel = viewModel(
+        factory = IshiharaViewModelFactory(NoLicensedIshiharaDatasetRepository())
+    )
     var page by androidx.compose.runtime.remember { mutableStateOf(AppPage.HOME) }
-    var lastCffHz by androidx.compose.runtime.remember { mutableStateOf<Float?>(null) }
+    var lastCffObservation by androidx.compose.runtime.remember { mutableStateOf<CffObservation?>(null) }
     var lastDistanceCm by androidx.compose.runtime.remember { mutableStateOf<Float?>(null) }
     var lightTask by androidx.compose.runtime.remember { mutableStateOf(LightTask.SCREEN_WORK) }
     Column(
@@ -113,8 +148,8 @@ private fun EyeCareApp(lux: Float?, sensorAvailable: Boolean) {
             AppPage.HOME -> {
                 Text("Pilih modul pemeriksaan", style = MaterialTheme.typography.titleLarge)
                 HomeModuleButton("Pemeriksaan pencahayaan") { page = AppPage.ENVIRONMENT }
-                HomeModuleButton("Simulasi persepsi warna") { page = AppPage.ISHIHARA }
-                HomeModuleButton("Eksperimen kedip CFF") { page = AppPage.CFF }
+                HomeModuleButton("Tes Ishihara (menunggu materi resmi)") { page = AppPage.ISHIHARA }
+                HomeModuleButton("Eksperimen kedip CFF/FFF") { page = AppPage.CFF }
                 HomeModuleButton("Estimasi jarak wajah") { page = AppPage.FACE }
                 HomeModuleButton("Pengingat 20-20-20") { page = AppPage.REMINDER }
                 HomeModuleButton("Ringkasan pemeriksaan") { page = AppPage.RESULTS }
@@ -132,11 +167,14 @@ private fun EyeCareApp(lux: Float?, sensorAvailable: Boolean) {
                 )
             }
             AppPage.ENVIRONMENT -> EnvironmentScreen(lux, sensorAvailable, lightTask) { lightTask = it }
-            AppPage.ISHIHARA -> IshiharaScreen()
-            AppPage.CFF -> CffScreen(onResult = { lastCffHz = it })
+            AppPage.ISHIHARA -> IshiharaScreen(ishiharaViewModel)
+            AppPage.CFF -> CffScreen(
+                displayRefreshRateHz = displayRefreshRateHz,
+                onResult = { lastCffObservation = it }
+            )
             AppPage.FACE -> FaceDistanceScreen(onEstimate = { lastDistanceCm = it })
             AppPage.REMINDER -> ReminderScreen()
-            AppPage.RESULTS -> ResultsScreen(lux, lastCffHz, lastDistanceCm, lightTask)
+            AppPage.RESULTS -> ResultsScreen(lux, lastCffObservation, lastDistanceCm, lightTask)
         }
     }
 }
@@ -185,6 +223,6 @@ private fun EnvironmentScreen(lux: Float?, sensorAvailable: Boolean, task: Light
         Text("Rentang ini merupakan panduan operasional edukatif untuk aktivitas, bukan standar medis atau batas diagnosis. Kebutuhan aktual bergantung pada usia, ukuran detail, kontras, silau, dan standar tempat kerja setempat.")
         Text("Cara memperbaiki hasil", style = MaterialTheme.typography.titleMedium)
         Text("Ukur di area kerja setinggi permukaan meja. Jika rendah: nyalakan lampu ruangan, buka tirai, atau arahkan lampu meja ke buku/meja. Jika tinggi atau silau: ubah arah lampu, gunakan diffuser/tirai, dan hindari pantulan pada layar.")
-        Text("Catatan: sensor ponsel mengukur cahaya di dekat sensor, bukan selalu pencahayaan tepat di atas meja. Rentang mengikuti pilihan aktivitas di aplikasi dan hanya panduan operasional edukatif. ISO/CIE 8995-1:2025 menetapkan kebutuhan pencahayaan menurut jenis aktivitas dan kualitas pencahayaan; tidak ada satu angka lux medis universal. Kecerahan layar 80% tidak menambah lux ruangan.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text("Catatan: sensor ponsel mengukur cahaya di dekat sensor, bukan selalu pencahayaan tepat di atas meja. Rentang mengikuti pilihan aktivitas di aplikasi dan hanya panduan operasional edukatif. ISO/CIE 8995-1:2025 menetapkan kebutuhan pencahayaan menurut jenis aktivitas dan kualitas pencahayaan; tidak ada satu angka lux medis universal. Kecerahan layar ponsel tidak diubah oleh modul ini.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }

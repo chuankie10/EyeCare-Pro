@@ -10,39 +10,105 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.withFrameNanos
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.eyecare.pro.domain.cff.CffStimulusTiming
+import com.eyecare.pro.domain.cff.FlickerPerception
+import com.eyecare.pro.presentation.cff.CffViewModel
 import kotlinx.coroutines.delay
 import java.util.Locale
 
-@Composable
-fun CffScreen(onResult: (Float) -> Unit = {}) {
-    var frequency by remember { mutableFloatStateOf(5f) }
-    var running by remember { mutableStateOf(false) }
-    var flashOn by remember { mutableStateOf(false) }
-    var observation by remember { mutableStateOf("BELUM_DIPILIH") }
-    var recordedHz by remember { mutableFloatStateOf(0f) }
-    val halfCycleMs = CffStimulusTiming.halfCycleMillis(frequency)
+private const val MAX_TRIAL_DURATION_MILLIS = 10_000L
 
-    LaunchedEffect(running, halfCycleMs) {
-        if (!running) {
+@Composable
+fun CffScreen(
+    displayRefreshRateHz: Float = 60f,
+    onResult: (com.eyecare.pro.domain.cff.CffObservation) -> Unit = {},
+    viewModel: CffViewModel = viewModel()
+) {
+    val state by viewModel.uiState.collectAsState()
+    val lifecycleOwner = LocalLifecycleOwner.current
+    val safeRefreshRate = displayRefreshRateHz.takeIf { it.isFinite() && it > 0f } ?: 60f
+    val maxFrequencyHz = remember(safeRefreshRate) {
+        CffStimulusTiming.maxAlternatingFrequencyHz(safeRefreshRate)
+    }
+    val canRun = maxFrequencyHz >= 5f
+
+    LaunchedEffect(maxFrequencyHz) {
+        viewModel.updateFrequencyLimit(maxFrequencyHz)
+    }
+    DisposableEffect(lifecycleOwner, viewModel) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_PAUSE || event == Lifecycle.Event.ON_STOP) {
+                // Cancel as soon as the Activity pauses; ON_STOP is a second defensive boundary.
+                viewModel.cancelSession()
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+            viewModel.cancelSession()
+        }
+    }
+
+    LaunchedEffect(state.isRunning) {
+        if (state.isRunning) {
+            delay(MAX_TRIAL_DURATION_MILLIS)
+            viewModel.stopAutomatically()
+        }
+    }
+
+    var flashOn by remember { mutableStateOf(false) }
+    val stimulusFrequencyHz = if (state.isRunning) {
+        state.lastStimulusFrequencyHz ?: state.targetFrequencyHz
+    } else {
+        state.targetFrequencyHz
+    }
+    val halfCycleNanos = remember(stimulusFrequencyHz) {
+        CffStimulusTiming.halfCycleNanos(stimulusFrequencyHz)
+    }
+    LaunchedEffect(state.isRunning, halfCycleNanos) {
+        if (!state.isRunning) {
             flashOn = false
-        } else {
-            while (true) {
-                flashOn = !flashOn
-                delay(halfCycleMs)
+            return@LaunchedEffect
+        }
+        var lastFrameNanos = 0L
+        var accumulatedNanos = 0L
+        while (true) {
+            val frameTimeNanos = withFrameNanos { it }
+            if (lastFrameNanos == 0L) {
+                lastFrameNanos = frameTimeNanos
+            } else {
+                val frameDeltaNanos = (frameTimeNanos - lastFrameNanos).coerceAtLeast(0L)
+                lastFrameNanos = frameTimeNanos
+                val phase = CffStimulusTiming.advanceFramePhase(
+                    accumulatedNanos = accumulatedNanos,
+                    frameDeltaNanos = frameDeltaNanos,
+                    halfCycleNanos = halfCycleNanos
+                )
+                accumulatedNanos = phase.remainderNanos
+                if (phase.shouldToggle) flashOn = !flashOn
             }
         }
     }
@@ -51,51 +117,116 @@ fun CffScreen(onResult: (Float) -> Unit = {}) {
         modifier = Modifier.padding(20.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        Text("Eksperimen kedip (CFF)", style = MaterialTheme.typography.headlineSmall)
-        Text("Tujuan: mengamati kapan kedipan mulai tampak menyatu menjadi cahaya stabil. Ini eksperimen persepsi, bukan pemeriksaan penyakit atau tes baku klinis.")
-        Text("Panduan mulai dari awal", style = MaterialTheme.typography.titleMedium)
-        Text("1. Istirahatkan mata dan duduk nyaman. Jangan lakukan bila sensitif terhadap cahaya, memiliki riwayat kejang yang dipicu kilatan, atau merasa tidak nyaman.\n2. Mulai dari 5 Hz. Amati bidang di bawah.\n3. Naikkan frekuensi perlahan, misalnya 1–2 Hz setiap langkah. Jangan mengejar angka tertentu.\n4. Catat saat kedipan terasa menyatu, masih berkedip, atau Anda tidak yakin. Hentikan jika pusing, sakit kepala, mual, atau mata tidak nyaman.")
-        Box(
-            modifier = Modifier.fillMaxWidth().height(180.dp)
-                .background(if (running && flashOn) Color.White else Color.Black, RoundedCornerShape(16.dp))
+        Text("Eksperimen CFF / FFF", style = MaterialTheme.typography.headlineSmall)
+        Text(
+            "Atur frekuensi target, amati bidang hitam-putih, lalu catat persepsi Anda. " +
+                "Ini hanya eksperimen subjektif, bukan pengukuran CFF klinis."
         )
-        Text("Frekuensi target: ${String.format(Locale.getDefault(), "%.0f", frequency)} Hz", style = MaterialTheme.typography.titleLarge)
-        Slider(value = frequency, onValueChange = { frequency = it }, valueRange = 5f..30f, steps = 24, enabled = !running)
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Button(onClick = { running = !running }) {
-                Text(if (running) "Hentikan" else "Mulai pada frekuensi ini")
+        Box(
+            modifier = Modifier.fillMaxWidth().height(180.dp).background(
+                if (state.isRunning && flashOn) Color.White else Color.Black,
+                RoundedCornerShape(16.dp)
+            )
+        )
+        Text(
+            "Refresh rate yang dilaporkan perangkat: " +
+                String.format(Locale.ROOT, "%.1f Hz", safeRefreshRate)
+        )
+        Text(
+            "Batas teoritis pergantian hitam-putih: " +
+                String.format(Locale.ROOT, "%.1f Hz", maxFrequencyHz)
+        )
+        if (canRun) {
+            Text(
+                "Frekuensi target aplikasi: " +
+                    String.format(Locale.ROOT, "%.1f Hz", stimulusFrequencyHz)
+            )
+            if (maxFrequencyHz > 5f) {
+                Slider(
+                    value = state.targetFrequencyHz,
+                    onValueChange = viewModel::setTargetFrequency,
+                    valueRange = 5f..maxFrequencyHz,
+                    enabled = !state.isRunning && !state.awaitingObservation
+                )
             }
-            OutlinedButton(enabled = !running && frequency < 30f, onClick = { frequency = (frequency + 1f).coerceAtMost(30f) }) { Text("+1 Hz") }
-            OutlinedButton(enabled = !running && frequency > 5f, onClick = { frequency = (frequency - 1f).coerceAtLeast(5f) }) { Text("-1 Hz") }
+        } else {
+            Text(
+                "Refresh rate perangkat terlalu rendah untuk rentang eksperimen ini.",
+                color = MaterialTheme.colorScheme.error
+            )
         }
-        Text("Apa yang Anda lihat saat frekuensi ini?", style = MaterialTheme.typography.titleMedium)
-        listOf(
-            "BERKEDIP" to "Masih terlihat berkedip",
-            "MENYATU" to "Terlihat menyatu / stabil",
-            "TIDAK_YAKIN" to "Tidak yakin / sulit diamati"
-        ).forEach { (value, label) ->
-            OutlinedButton(
-                enabled = !running,
-                onClick = { observation = value },
-                modifier = Modifier.fillMaxWidth()
-            ) { Text(if (observation == value) "✓ $label" else label) }
+        Text(
+            "Peringatan keselamatan: jangan jalankan stimulasi berkedip jika Anda memiliki " +
+                "epilepsi atau riwayat kejang yang dipicu cahaya. Jika Anda memiliki riwayat " +
+                "tersebut atau tidak yakin, jangan lanjutkan. Hentikan segera jika pusing, " +
+                "mual, sakit kepala, atau tidak nyaman. Setiap percobaan dibatasi maksimal 10 detik."
+        )
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Checkbox(
+                modifier = Modifier.testTag("cff-warning-acknowledgement"),
+                checked = state.warningAcknowledged,
+                onCheckedChange = viewModel::setWarningAcknowledged,
+                enabled = !state.isRunning && !state.awaitingObservation
+            )
+            Text("Saya telah membaca peringatan keselamatan.")
+        }
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Checkbox(
+                modifier = Modifier.testTag("cff-no-known-photosensitivity-risk"),
+                checked = state.noKnownPhotosensitivityRiskConfirmed,
+                onCheckedChange = viewModel::setNoKnownPhotosensitivityRiskConfirmed,
+                enabled = !state.isRunning && !state.awaitingObservation
+            )
+            Text("Saya tidak memiliki epilepsi atau riwayat kejang akibat cahaya.")
         }
         Button(
-            enabled = !running && observation != "BELUM_DIPILIH",
-            onClick = { recordedHz = frequency; onResult(frequency) },
-            modifier = Modifier.fillMaxWidth()
-        ) { Text("Simpan catatan pengamatan") }
-        if (recordedHz > 0f) {
-            Text("Catatan terakhir: ${String.format(Locale.getDefault(), "%.0f", recordedHz)} Hz — " + when (observation) {
-                "MENYATU" -> "dilaporkan tampak stabil"
-                "BERKEDIP" -> "dilaporkan masih berkedip"
-                else -> "pengamatan tidak pasti"
-            })
+            enabled = canRun && state.warningAcknowledged &&
+                state.noKnownPhotosensitivityRiskConfirmed && !state.isRunning &&
+                !state.awaitingObservation,
+            onClick = { viewModel.start(safeRefreshRate) }
+        ) { Text("Mulai stimulasi") }
+        OutlinedButton(
+            enabled = state.isRunning,
+            onClick = viewModel::stop
+        ) { Text("Hentikan stimulasi") }
+
+        state.statusMessage?.let { message ->
+            Text(message, color = MaterialTheme.colorScheme.error)
         }
-        Text("Cara memahami hasil", style = MaterialTheme.typography.titleMedium)
-        Text("Frekuensi lebih tinggi berarti layar berganti terang–gelap lebih cepat; bukan berarti mata Anda bekerja lebih cepat. Jika pada frekuensi yang makin tinggi kedipan masih terlihat, itu hanya laporan persepsi pada perangkat dan kondisi saat itu. Jika kedipan tampak menyatu pada frekuensi lebih rendah, itu juga bukan bukti gangguan. Jika bidang terasa berhenti berkedip, biasanya Anda sedang mencapai efek penyatuan persepsi pada stimulus tersebut—bukan berarti fungsi mata berhenti atau ada penyakit. Tidak ada target Hz universal untuk menyatakan mata normal atau sakit.")
-        Text("Tindak lanjut yang aman", style = MaterialTheme.typography.titleMedium)
-        Text("Jika mata lelah setelah layar, hentikan tes, istirahat, berkedip secara sadar, dan gunakan aturan 20-20-20. Jangan mencoba terapi kilatan atau mengejar angka CFF tertentu. Bila keluhan menetap, penglihatan buram/ganda, nyeri, atau sakit kepala berulang, jadwalkan pemeriksaan dokter mata.")
-        Text("Ponsel tidak dapat menjamin frekuensi kilatan aktual: refresh rate, frame pacing Android, PWM, kecerahan, dan panel layar memengaruhi stimulus. Karena itu angka ini tidak boleh dipakai untuk diagnosis, terapi, atau keputusan rujukan sendirian. Bila ada kilatan cahaya baru di penglihatan, banyak floaters baru, bayangan seperti tirai, atau kehilangan penglihatan mendadak, cari pertolongan mata segera; jangan mengulang tes.")
+
+        if (state.awaitingObservation) {
+            Text(
+                "Apa yang Anda lihat pada target " +
+                    String.format(Locale.ROOT, "%.1f Hz", state.lastStimulusFrequencyHz ?: 0f) + "?"
+            )
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedButton(onClick = {
+                    viewModel.recordObservation(FlickerPerception.STILL_VISIBLE)?.let(onResult)
+                }) { Text("Masih berkedip") }
+                OutlinedButton(onClick = {
+                    viewModel.recordObservation(FlickerPerception.APPEARS_FUSED)?.let(onResult)
+                }) { Text("Tampak menyatu") }
+            }
+            OutlinedButton(onClick = {
+                viewModel.recordObservation(FlickerPerception.UNCERTAIN)?.let(onResult)
+            }) { Text("Tidak yakin") }
+        }
+        state.lastObservation?.let { observation ->
+            Text(
+                "Catatan lokal: target " +
+                    String.format(Locale.ROOT, "%.1f", observation.requestedFrequencyHz) +
+                    " Hz; ${observation.perception.displayLabel.lowercase(Locale.ROOT)}."
+            )
+        }
+        Text(
+            "Batas penting: pergantian hanya dijadwalkan pada frame Compose. Pada layar 60 Hz, " +
+                "batas teoritis pola hitam-putih adalah sekitar 30 Hz; layar 90/120 Hz memiliki " +
+                "batas teoritis berbeda. Frame yang terlewat, refresh rate adaptif, PWM, " +
+                "kecerahan, panel, mode hemat daya, dan beban sistem dapat mengubah stimulus " +
+                "sebenarnya. Nilai target bukan frekuensi fisik yang terukur, bukan ambang klinis, " +
+                "dan tidak boleh digunakan sendirian untuk menyimpulkan kelelahan mata.",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.error
+        )
     }
 }

@@ -2,7 +2,7 @@ name: Android CI
 
 on:
   push:
-    branches: [ main ]
+    branches: [ main, feature/ishihara-gate-cff-v2 ]
   pull_request:
     branches: [ main ]
   workflow_dispatch:
@@ -23,16 +23,40 @@ jobs:
           distribution: temurin
           java-version: '17'
 
-      - name: Set up Gradle 8.13
+      - name: Install Android SDK Platform 37.0 from runner SDK
+        env:
+          ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
+        run: |
+          SDKMANAGER="$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager"
+          "$SDKMANAGER" --list | grep -E "platforms;android-(36|37)"
+          yes | "$SDKMANAGER" --licenses >/dev/null
+          "$SDKMANAGER" "platforms;android-37.0" "build-tools;36.0.0"
+
+      - name: Set up Gradle 9.5.0
         uses: gradle/actions/setup-gradle@v4
         with:
-          gradle-version: '8.13'
+          gradle-version: '9.5.0'
 
-      - name: Verify Gradle and Android plugin
-        run: gradle --version
+      - name: Verify toolchain
+        env:
+          ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
+        run: |
+          java -version
+          gradle --version
+          "$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager" --list_installed
 
       - name: Run unit tests
         run: gradle testDebugUnitTest
+
+      - name: Run Compose UI smoke tests on API 35 emulator
+        uses: ReactiveCircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          target: google_apis
+          arch: x86_64
+          profile: pixel_2
+          disable-animations: true
+          script: gradle connectedDebugAndroidTest
 
       - name: Build debug APK
         run: gradle assembleDebug
