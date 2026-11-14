@@ -9,7 +9,6 @@ import android.hardware.display.DisplayManager
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
-import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.Arrangement
@@ -101,9 +100,6 @@ class MainActivity : ComponentActivity(), SensorEventListener {
     override fun onPause() {
         displayManager.unregisterDisplayListener(displayListener)
         sensorManager.unregisterListener(this)
-        window.attributes = window.attributes.apply {
-            screenBrightness = WindowManager.LayoutParams.BRIGHTNESS_OVERRIDE_NONE
-        }
         super.onPause()
     }
 
@@ -119,14 +115,8 @@ class MainActivity : ComponentActivity(), SensorEventListener {
         if (event.sensor.type != Sensor.TYPE_LIGHT || event.values.isEmpty()) return
         val lux = event.values[0]
         if (!lux.isFinite()) return
-        val safeLux = lux.coerceAtLeast(0f)
-        currentLux = safeLux
-        val brightness = if (safeLux in 100f..400f) {
-            0.8f
-        } else {
-            WindowManager.LayoutParams.BRIGHTNESS_OVERRIDE_NONE
-        }
-        window.attributes = window.attributes.apply { screenBrightness = brightness }
+        // The sensor is informational only. Never override the user's system/display brightness.
+        currentLux = lux.coerceAtLeast(0f)
     }
 
     override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) = Unit
@@ -233,6 +223,6 @@ private fun EnvironmentScreen(lux: Float?, sensorAvailable: Boolean, task: Light
         Text("Rentang ini merupakan panduan operasional edukatif untuk aktivitas, bukan standar medis atau batas diagnosis. Kebutuhan aktual bergantung pada usia, ukuran detail, kontras, silau, dan standar tempat kerja setempat.")
         Text("Cara memperbaiki hasil", style = MaterialTheme.typography.titleMedium)
         Text("Ukur di area kerja setinggi permukaan meja. Jika rendah: nyalakan lampu ruangan, buka tirai, atau arahkan lampu meja ke buku/meja. Jika tinggi atau silau: ubah arah lampu, gunakan diffuser/tirai, dan hindari pantulan pada layar.")
-        Text("Catatan: sensor ponsel mengukur cahaya di dekat sensor, bukan selalu pencahayaan tepat di atas meja. Rentang mengikuti pilihan aktivitas di aplikasi dan hanya panduan operasional edukatif. ISO/CIE 8995-1:2025 menetapkan kebutuhan pencahayaan menurut jenis aktivitas dan kualitas pencahayaan; tidak ada satu angka lux medis universal. Kecerahan layar 80% tidak menambah lux ruangan.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text("Catatan: sensor ponsel mengukur cahaya di dekat sensor, bukan selalu pencahayaan tepat di atas meja. Rentang mengikuti pilihan aktivitas di aplikasi dan hanya panduan operasional edukatif. ISO/CIE 8995-1:2025 menetapkan kebutuhan pencahayaan menurut jenis aktivitas dan kualitas pencahayaan; tidak ada satu angka lux medis universal. Kecerahan layar ponsel tidak diubah oleh modul ini.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
