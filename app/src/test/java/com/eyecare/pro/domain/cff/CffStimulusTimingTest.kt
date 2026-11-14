@@ -45,6 +45,25 @@ class CffStimulusTimingTest {
         assertEquals(10_000_000L, step.remainderNanos)
     }
 
+    @Test fun fractionalFrameCadenceAveragesTwelveHertzOnSixtyHertzDisplay() {
+        val halfCycleNanos = CffStimulusTiming.halfCycleNanos(12f)
+        var remainderNanos = 0L
+        var toggleCount = 0
+
+        repeat(60) {
+            val phase = CffStimulusTiming.advanceFramePhase(
+                accumulatedNanos = remainderNanos,
+                frameDeltaNanos = 16_666_667L,
+                halfCycleNanos = halfCycleNanos
+            )
+            remainderNanos = phase.remainderNanos
+            if (phase.shouldToggle) toggleCount += 1
+        }
+
+        // One second at 12 Hz contains 24 half-cycles (transitions).
+        assertEquals(24, toggleCount)
+    }
+
     @Test(expected = IllegalArgumentException::class) fun rejectsZeroFrequency() {
         CffStimulusTiming.halfCycleNanos(0f)
     }
