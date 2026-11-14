@@ -27,6 +27,7 @@ import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
@@ -156,19 +157,31 @@ fun CffScreen(
         }
         Text(
             "Peringatan keselamatan: jangan jalankan stimulasi berkedip jika Anda memiliki " +
-                "epilepsi atau riwayat kejang yang dipicu cahaya. Hentikan segera jika pusing, " +
+                "epilepsi atau riwayat kejang yang dipicu cahaya. Jika Anda memiliki riwayat " +
+                "tersebut atau tidak yakin, jangan lanjutkan. Hentikan segera jika pusing, " +
                 "mual, sakit kepala, atau tidak nyaman. Setiap percobaan dibatasi maksimal 10 detik."
         )
         Row(verticalAlignment = Alignment.CenterVertically) {
             Checkbox(
+                modifier = Modifier.testTag("cff-warning-acknowledgement"),
                 checked = state.warningAcknowledged,
                 onCheckedChange = viewModel::setWarningAcknowledged,
                 enabled = !state.isRunning && !state.awaitingObservation
             )
             Text("Saya telah membaca peringatan keselamatan.")
         }
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Checkbox(
+                modifier = Modifier.testTag("cff-no-known-photosensitivity-risk"),
+                checked = state.noKnownPhotosensitivityRiskConfirmed,
+                onCheckedChange = viewModel::setNoKnownPhotosensitivityRiskConfirmed,
+                enabled = !state.isRunning && !state.awaitingObservation
+            )
+            Text("Saya tidak memiliki epilepsi atau riwayat kejang akibat cahaya.")
+        }
         Button(
-            enabled = canRun && state.warningAcknowledged && !state.isRunning &&
+            enabled = canRun && state.warningAcknowledged &&
+                state.noKnownPhotosensitivityRiskConfirmed && !state.isRunning &&
                 !state.awaitingObservation,
             onClick = { viewModel.start(safeRefreshRate) }
         ) { Text("Mulai stimulasi") }
