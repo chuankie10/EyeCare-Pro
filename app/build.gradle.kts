@@ -13,8 +13,8 @@ android {
         minSdk = 24
         // Keep target 36 until API 37 target-behavior changes are device-tested.
         targetSdk = 36
-        versionCode = 5
-        versionName = "0.5.0"
+        versionCode = 6
+        versionName = "0.6.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
