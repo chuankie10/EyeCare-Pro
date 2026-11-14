@@ -61,7 +61,7 @@ AGP 9.3 mendukung compile API 37 dan memerlukan Gradle 9.5.0 serta JDK 17. Kotli
 
 ## Build dan unit test
 
-Gunakan JDK 17, Android SDK Platform 37, Build Tools 36.0.0, dan Gradle 9.5.0. Dari direktori repository:
+Gunakan JDK 17, Android SDK Platform 37.0, Build Tools 36.0.0, dan Gradle 9.5.0. Dari direktori repository:
 
 ```bash
 gradle testDebugUnitTest
