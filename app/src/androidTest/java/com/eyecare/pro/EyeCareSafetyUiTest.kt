@@ -3,6 +3,8 @@ package com.eyecare.pro
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
+import androidx.compose.ui.test.assertIsOn
+import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
@@ -38,12 +40,14 @@ class EyeCareSafetyUiTest {
         val startButton = composeRule.onNodeWithText("Mulai stimulasi")
         startButton.assertIsNotEnabled()
 
-        composeRule.onNodeWithTag("cff-warning-acknowledgement")
-            .performClick()
-        startButton.assertIsNotEnabled()
+        val warningAcknowledgement = composeRule.onNodeWithTag("cff-warning-acknowledgement")
+        warningAcknowledgement.performScrollTo().performClick()
+        warningAcknowledgement.assertIsOn()
+        startButton.performScrollTo().assertIsNotEnabled()
 
-        composeRule.onNodeWithTag("cff-no-known-photosensitivity-risk")
-            .performClick()
-        startButton.assertIsEnabled()
+        val riskConfirmation = composeRule.onNodeWithTag("cff-no-known-photosensitivity-risk")
+        riskConfirmation.performScrollTo().performClick()
+        riskConfirmation.assertIsOn()
+        startButton.performScrollTo().assertIsEnabled()
     }
 }
