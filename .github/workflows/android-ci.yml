@@ -12,23 +12,24 @@ permissions:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    name: Unit tests and debug APK
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up JDK 17
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v6
         with:
           distribution: temurin
           java-version: '17'
 
-      - name: Install Android SDK Platform 37.0 from runner SDK
+      - name: Install Android SDK Platform 37.0
         env:
           ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
         run: |
           SDKMANAGER="$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager"
-          "$SDKMANAGER" --list | grep -E "platforms;android-(36|37)"
           yes | "$SDKMANAGER" --licenses >/dev/null
           "$SDKMANAGER" "platforms;android-37.0" "build-tools;36.0.0"
 
@@ -38,15 +39,50 @@ jobs:
           gradle-version: '9.5.0'
 
       - name: Verify toolchain
-        env:
-          ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
         run: |
           java -version
           gradle --version
-          "$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager" --list_installed
 
       - name: Run unit tests
-        run: gradle testDebugUnitTest
+        run: gradle --no-daemon testDebugUnitTest
+
+      - name: Build debug APK
+        run: gradle --no-daemon assembleDebug
+
+      - name: Upload debug APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: EyeCare-Pro-debug
+          path: app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+          retention-days: 7
+
+  instrumented:
+    name: Compose UI tests on Android 15 emulator
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Install compile SDK
+        env:
+          ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
+        run: |
+          SDKMANAGER="$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager"
+          yes | "$SDKMANAGER" --licenses >/dev/null
+          "$SDKMANAGER" "platforms;android-37.0" "build-tools;36.0.0"
+
+      - name: Set up Gradle 9.5.0
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '9.5.0'
 
       - name: Run Compose UI smoke tests on API 35 emulator
         uses: ReactiveCircus/android-emulator-runner@v2
@@ -55,15 +91,11 @@ jobs:
           target: google_apis
           arch: x86_64
           profile: pixel_2
+          cores: 2
+          ram-size: 2048M
+          heap-size: 512M
+          emulator-boot-timeout: 900
+          emulator-options: '-no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim -camera-back none -camera-front none'
           disable-animations: true
-          script: gradle connectedDebugAndroidTest
-
-      - name: Build debug APK
-        run: gradle assembleDebug
-
-      - name: Upload APK
-        uses: actions/upload-artifact@v4
-        with:
-          name: EyeCare-Pro-debug
-          path: app/build/outputs/apk/debug/app-debug.apk
-          if-no-files-found: error
+          disable-spellchecker: true
+          script: gradle --no-daemon connectedDebugAndroidTest
