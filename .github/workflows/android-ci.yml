@@ -58,9 +58,13 @@ jobs:
           retention-days: 7
 
   instrumented:
-    name: Compose UI tests on Android 15 emulator
+    name: Compose UI tests on Android API ${{ matrix.api-level }}
     runs-on: ubuntu-24.04
     timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        api-level: [24, 35, 37]
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -84,10 +88,10 @@ jobs:
         with:
           gradle-version: '9.5.0'
 
-      - name: Run Compose UI smoke tests on API 35 emulator
+      - name: Run Compose UI smoke tests on API ${{ matrix.api-level }} emulator
         uses: ReactiveCircus/android-emulator-runner@v2
         with:
-          api-level: 35
+          api-level: ${{ matrix.api-level }}
           target: google_apis
           arch: x86_64
           profile: pixel_2
