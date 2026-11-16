@@ -75,7 +75,7 @@ gradle connectedDebugAndroidTest
 gradle assembleDebug
 ```
 
-`connectedDebugAndroidTest` memerlukan emulator atau perangkat Android yang terhubung. CI menjalankan Compose UI smoke test pada emulator API 35, selain unit test dan build APK.
+`connectedDebugAndroidTest` memerlukan emulator atau perangkat Android yang terhubung. CI memisahkan job build dari job instrumentasi: unit test dan APK dapat tetap dihasilkan meskipun emulator bermasalah. Compose UI smoke test dijalankan pada emulator API 24, 35, dan 37.
 
 APK debug dihasilkan di:
 
@@ -96,4 +96,4 @@ app/build/outputs/apk/debug/app-debug.apk
 9. Kamera/sensor/notifikasi: izin ditolak, perangkat tanpa sensor cahaya, kamera tidak tersedia, dan aplikasi kembali dari background.
 10. Aksesibilitas: ukuran teks besar, kontras, TalkBack, dan orientasi layar.
 
-CI menjalankan unit test, UI smoke test emulator API 35, dan build APK. Pengujian pada perangkat fisik tetap wajib sebelum rilis.
+CI menjalankan unit test, membangun serta mengunggah APK debug, dan menjalankan UI smoke test pada emulator API 24/35/37. Repository saat ini belum menyertakan Gradle Wrapper; build lokal memerlukan Gradle 9.5.0 terpasang. Pengujian pada perangkat fisik tetap wajib sebelum rilis.
