@@ -91,8 +91,10 @@ jobs:
       - name: Run Compose UI smoke tests on API ${{ matrix.api-level }} emulator
         uses: ReactiveCircus/android-emulator-runner@v2
         with:
-          api-level: ${{ matrix.api-level }}
-          target: google_apis
+          # Android 17 SDK packages use the 37.0 platform/system-image suffix.
+          api-level: ${{ matrix.api-level == 37 && '37.0' || matrix.api-level }}
+          system-image-api-level: ${{ matrix.api-level == 37 && '37.0' || matrix.api-level }}
+          target: ${{ matrix.api-level == 37 && 'google_apis_ps16k' || 'google_apis' }}
           arch: x86_64
           profile: pixel_2
           cores: 2
