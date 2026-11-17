@@ -102,6 +102,9 @@ jobs:
           heap-size: 512M
           emulator-boot-timeout: 900
           emulator-options: '-no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim -camera-back none -camera-front none'
-          disable-animations: true
+          # Do not ask android-emulator-runner to change global animation settings.
+          # On API 37 this adb settings call failed with a broken pipe immediately
+          # after boot; Compose UI tests use the Compose test clock and do not need it.
+          disable-animations: false
           disable-spellchecker: true
           script: gradle --no-daemon connectedDebugAndroidTest
