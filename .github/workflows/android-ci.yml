@@ -88,7 +88,7 @@ jobs:
         with:
           gradle-version: '9.5.0'
 
-      - name: Run Compose UI smoke tests on API ${{ matrix.api-level }} emulator
+      - name: Run Compose UI smoke tests on Android API ${{ matrix.api-level }} emulator
         uses: ReactiveCircus/android-emulator-runner@v2
         with:
           # Android 17 SDK packages use the 37.0 platform/system-image suffix.
@@ -102,9 +102,8 @@ jobs:
           heap-size: 512M
           emulator-boot-timeout: 900
           emulator-options: '-no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim -camera-back none -camera-front none'
-          # Do not ask android-emulator-runner to change global animation settings.
-          # On API 37 this adb settings call failed with a broken pipe immediately
-          # after boot; Compose UI tests use the Compose test clock and do not need it.
+          # Avoid nonessential adb settings mutations: API 37's settings provider
+          # caused a broken pipe after boot in the previous emulator run.
           disable-animations: false
-          disable-spellchecker: true
+          disable-spellchecker: false
           script: gradle --no-daemon connectedDebugAndroidTest
