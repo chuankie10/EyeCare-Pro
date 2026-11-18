@@ -50,7 +50,7 @@ Aplikasi hanya menghitung respons mentah. Skor tidak diubah menjadi kategori nor
 - JDK/JVM: 17
 - Android Gradle Plugin: 9.3.1
 - Gradle: 9.5.0
-- Kotlin Gradle plugin: 2.4.21 melalui buildscript classpath untuk AGP built-in Kotlin
+- Kotlin: 2.4.21 melalui dukungan Kotlin bawaan AGP 9
 - Compose compiler plugin: 2.4.21
 - Compose BOM: 2025.09.01 (Compose 1.9.2)
 - AndroidX Core KTX: 1.17.0
@@ -75,13 +75,19 @@ gradle connectedDebugAndroidTest
 gradle assembleDebug
 ```
 
-`connectedDebugAndroidTest` memerlukan emulator atau perangkat Android yang terhubung. CI memisahkan job build dari job instrumentasi: unit test dan APK dapat tetap dihasilkan meskipun emulator bermasalah. Compose UI smoke test dijalankan pada emulator API 24, 35, dan 37.
+`connectedDebugAndroidTest` memerlukan emulator atau perangkat Android yang terhubung. CI memisahkan job build dari job instrumentasi: unit test dan APK dapat tetap dihasilkan meskipun emulator bermasalah.
+
+Compose UI smoke test dijadwalkan pada emulator API 24, 35, dan 37. Sebelum instalasi test APK, CI menunggu tiga indikator kesiapan emulator: `sys.boot_completed=1`, PackageManager merespons `pm list packages`, dan Settings provider merespons `settings get system screen_brightness`. Emulator dibuat ulang dengan data bersih, 4 core CPU, RAM 4 GB, dan laporan instrumentasi diunggah meskipun job gagal.
+
+Run #116 memperlihatkan dua kegagalan lingkungan emulator, bukan kegagalan kompilasi aplikasi: API 37 menolak instalasi saat Settings provider belum terdaftar; API 24 mengalami timeout perintah shell ketika PackageManager belum siap. API 35 melewati UI smoke test pada run yang sama. Perbaikan readiness tersebut sekarang ada di workflow; hasil run setelah perubahan ini masih harus diperiksa sebelum menyatakan matrix hijau.
 
 APK debug dihasilkan di:
 
 ```
 app/build/outputs/apk/debug/app-debug.apk
 ```
+
+Repository belum menyertakan Gradle Wrapper; build lokal memerlukan Gradle 9.5.0 terpasang. Wrapper harus ditambahkan sebelum menjadikan repository mudah dibangun oleh pengguna baru.
 
 ## Daftar uji perangkat
 
@@ -96,4 +102,4 @@ app/build/outputs/apk/debug/app-debug.apk
 9. Kamera/sensor/notifikasi: izin ditolak, perangkat tanpa sensor cahaya, kamera tidak tersedia, dan aplikasi kembali dari background.
 10. Aksesibilitas: ukuran teks besar, kontras, TalkBack, dan orientasi layar.
 
-CI menjalankan unit test, membangun serta mengunggah APK debug, dan menjalankan UI smoke test pada emulator API 24/35/37. Repository saat ini belum menyertakan Gradle Wrapper; build lokal memerlukan Gradle 9.5.0 terpasang. Pengujian pada perangkat fisik tetap wajib sebelum rilis.
+Pengujian pada perangkat fisik tetap wajib sebelum rilis.
