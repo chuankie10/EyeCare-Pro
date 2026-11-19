@@ -107,7 +107,9 @@ jobs:
           disable-animations: false
           disable-spellchecker: false
           script: |
-            set -euo pipefail
+            # android-emulator-runner executes this block through /usr/bin/sh,
+            # not Bash. Keep the readiness script strictly POSIX-compatible.
+            set -eu
             adb wait-for-device
 
             # ADB can report "device" before Android has registered system
@@ -136,7 +138,7 @@ jobs:
               exit 1
             fi
 
-            adb shell pm list packages | head -n 5
+            adb shell pm list packages | sed -n '1,5p'
             gradle --no-daemon connectedDebugAndroidTest
 
       - name: Upload instrumented test reports
