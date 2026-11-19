@@ -33,21 +33,19 @@ jobs:
           yes | "$SDKMANAGER" --licenses >/dev/null
           "$SDKMANAGER" "platforms;android-37.0" "build-tools;36.0.0"
 
-      - name: Set up Gradle 9.5.0
+      - name: Set up Gradle from the checked-in wrapper
         uses: gradle/actions/setup-gradle@v4
-        with:
-          gradle-version: '9.5.0'
 
       - name: Verify toolchain
         run: |
           java -version
-          gradle --version
+          ./gradlew --version
 
       - name: Run unit tests
-        run: gradle --no-daemon testDebugUnitTest
+        run: ./gradlew --no-daemon testDebugUnitTest
 
       - name: Build debug APK
-        run: gradle --no-daemon assembleDebug
+        run: ./gradlew --no-daemon assembleDebug
 
       - name: Upload debug APK
         uses: actions/upload-artifact@v4
@@ -83,10 +81,8 @@ jobs:
           yes | "$SDKMANAGER" --licenses >/dev/null
           "$SDKMANAGER" "platforms;android-37.0" "build-tools;36.0.0"
 
-      - name: Set up Gradle 9.5.0
+      - name: Set up Gradle from the checked-in wrapper
         uses: gradle/actions/setup-gradle@v4
-        with:
-          gradle-version: '9.5.0'
 
       - name: Run Compose UI smoke tests on Android API ${{ matrix.api-level }} emulator
         uses: ReactiveCircus/android-emulator-runner@v2
@@ -139,7 +135,7 @@ jobs:
             fi
 
             adb shell pm list packages | sed -n '1,5p'
-            gradle --no-daemon connectedDebugAndroidTest
+            ./gradlew --no-daemon connectedDebugAndroidTest
 
       - name: Upload instrumented test reports
         if: always()
