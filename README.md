@@ -67,12 +67,12 @@ AGP 9.3 mendukung compile API 37 dan memerlukan Gradle 9.5.0 serta JDK 17. Kotli
 
 ## Build dan pengujian
 
-Gunakan JDK 17, Android SDK Platform 37.0, Build Tools 36.0.0, dan Gradle 9.5.0. Dari direktori repository:
+Gunakan JDK 17, Android SDK Platform 37.0, dan Build Tools 36.0.0. Gradle 9.5.0 disediakan melalui Gradle Wrapper yang tersimpan di repository (`gradlew`, `gradlew.bat`, `gradle/wrapper/gradle-wrapper.jar`, dan `gradle/wrapper/gradle-wrapper.properties`). Dari direktori repository:
 
 ```bash
-gradle testDebugUnitTest
-gradle connectedDebugAndroidTest
-gradle assembleDebug
+./gradlew testDebugUnitTest
+./gradlew connectedDebugAndroidTest
+./gradlew assembleDebug
 ```
 
 `connectedDebugAndroidTest` memerlukan emulator atau perangkat Android yang terhubung. CI memisahkan job build dari job instrumentasi: unit test dan APK dapat tetap dihasilkan meskipun emulator bermasalah.
@@ -87,7 +87,7 @@ APK debug dihasilkan di:
 app/build/outputs/apk/debug/app-debug.apk
 ```
 
-Repository belum menyertakan Gradle Wrapper; build lokal memerlukan Gradle 9.5.0 terpasang. Wrapper harus ditambahkan sebelum menjadikan repository mudah dibangun oleh pengguna baru.
+Gradle Wrapper mengunduh distribusi Gradle 9.5.0 resmi pada penggunaan pertama. Di Windows gunakan `gradlew.bat` sebagai pengganti `./gradlew`. Wrapper mengunci versi Gradle; JDK 17 dan Android SDK Platform 37.0 tetap harus tersedia.
 
 ## Daftar uji perangkat
 
