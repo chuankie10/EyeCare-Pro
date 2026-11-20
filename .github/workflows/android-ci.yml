@@ -10,7 +10,6 @@ on:
 permissions:
   contents: read
 
-# Push and pull_request events for the same head branch share one CI slot.
 concurrency:
   group: android-ci-${{ github.workflow }}-${{ github.head_ref || github.ref_name }}
   cancel-in-progress: true
@@ -36,7 +35,7 @@ jobs:
         run: |
           SDKMANAGER="$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager"
           yes | "$SDKMANAGER" --licenses >/dev/null
-          "$SDKMANAGER" "platforms;android-37.0" "build-tools;36.0.0"
+          "$SDKMANAGER" --install "platforms;android-37.0" "build-tools;36.0.0" "platform-tools"
 
       - name: Set up Gradle from the checked-in wrapper
         uses: gradle/actions/setup-gradle@v4
@@ -63,11 +62,30 @@ jobs:
   instrumented:
     name: Compose UI tests on Android API ${{ matrix.api-level }}
     runs-on: ubuntu-24.04
-    timeout-minutes: 50
+    timeout-minutes: 60
     strategy:
       fail-fast: false
       matrix:
-        api-level: [24, 35, 37]
+        include:
+          # AOSP image keeps the legacy API 24 emulator independent of old
+          # Google APIs packages that can stall on current hosted runners.
+          - api-level: 24
+            image-api-level: "24"
+            image-target: default
+          - api-level: 35
+            image-api-level: "35"
+            image-target: google_apis
+          # Android 17 16 KB page-size image also exercises bundled native libraries.
+          - api-level: 37
+            image-api-level: "37.0"
+            image-target: google_apis_ps16k
+    env:
+      ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
+      ANDROID_SERIAL: emulator-5554
+      API_LEVEL: ${{ matrix.api-level }}
+      IMAGE_API_LEVEL: ${{ matrix.image-api-level }}
+      IMAGE_TARGET: ${{ matrix.image-target }}
+      ANDROID_EMULATOR_WAIT_TIME_BEFORE_KILL: 60
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -78,69 +96,24 @@ jobs:
           distribution: temurin
           java-version: '17'
 
-      - name: Install compile SDK
-        env:
-          ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
+      - name: Install Android emulator and system image
         run: |
           SDKMANAGER="$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager"
           yes | "$SDKMANAGER" --licenses >/dev/null
-          "$SDKMANAGER" "platforms;android-37.0" "build-tools;36.0.0"
+          "$SDKMANAGER" --install \
+            "platforms;android-37.0" \
+            "build-tools;36.0.0" \
+            "platform-tools" \
+            "emulator" \
+            "system-images;android-${IMAGE_API_LEVEL};${IMAGE_TARGET};x86_64"
 
       - name: Set up Gradle from the checked-in wrapper
         uses: gradle/actions/setup-gradle@v4
 
-      - name: Run Compose UI smoke tests on Android API ${{ matrix.api-level }} emulator
-        uses: ReactiveCircus/android-emulator-runner@v2
-        with:
-          # API 37 currently uses the 16 KB Google APIs system image.
-          api-level: ${{ matrix.api-level == 37 && '37.0' || matrix.api-level }}
-          system-image-api-level: ${{ matrix.api-level == 37 && '37.0' || matrix.api-level }}
-          target: ${{ matrix.api-level == 37 && 'google_apis_ps16k' || 'google_apis' }}
-          arch: x86_64
-          profile: pixel_2
-          force-avd-creation: true
-          cores: 4
-          ram-size: 4096M
-          heap-size: 1024M
-          emulator-boot-timeout: 1200
-          emulator-options: '-no-window -gpu swiftshader_indirect -no-snapshot -wipe-data -noaudio -no-boot-anim -camera-back none -camera-front none'
-          # Do not let the runner mutate system animation/spellchecker settings.
-          disable-animations: false
-          disable-spellchecker: false
-          script: |
-            # android-emulator-runner executes this block through /usr/bin/sh,
-            # not Bash. Keep the readiness script strictly POSIX-compatible.
-            set -eu
-            adb wait-for-device
-
-            # ADB can report "device" before Android has registered system
-            # providers. Wait for PackageManager and Settings before installing
-            # the test APK; this avoids false UTP install failures during boot.
-            ready=0
-            for attempt in $(seq 1 150); do
-              boot_completed="$(adb shell getprop sys.boot_completed 2>/dev/null | tr -d '\r' || true)"
-              package_ready="no"
-              settings_ready="no"
-              adb shell pm list packages >/dev/null 2>&1 && package_ready="yes" || true
-              adb shell settings get system screen_brightness >/dev/null 2>&1 && settings_ready="yes" || true
-
-              if [ "$boot_completed" = "1" ] && [ "$package_ready" = "yes" ] && [ "$settings_ready" = "yes" ]; then
-                ready=1
-                break
-              fi
-              sleep 2
-            done
-
-            if [ "$ready" -ne 1 ]; then
-              echo "Emulator did not finish booting system providers."
-              adb shell getprop sys.boot_completed || true
-              adb shell pm list packages || true
-              adb shell settings get system screen_brightness || true
-              exit 1
-            fi
-
-            adb shell pm list packages | sed -n '1,5p'
-            ./gradlew --no-daemon connectedDebugAndroidTest
+      - name: Run Compose UI tests on managed emulator
+        # Keep this as one command. The emulator script itself contains the
+        # multi-line POSIX logic and owns emulator startup, readiness and cleanup.
+        run: sh .github/scripts/run-emulator-tests.sh
 
       - name: Upload instrumented test reports
         if: always()

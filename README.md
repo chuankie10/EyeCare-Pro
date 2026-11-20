@@ -70,16 +70,26 @@ AGP 9.3 mendukung compile API 37 dan memerlukan Gradle 9.5.0 serta JDK 17. Kotli
 Gunakan JDK 17, Android SDK Platform 37.0, dan Build Tools 36.0.0. Gradle 9.5.0 disediakan melalui Gradle Wrapper yang tersimpan di repository (`gradlew`, `gradlew.bat`, `gradle/wrapper/gradle-wrapper.jar`, dan `gradle/wrapper/gradle-wrapper.properties`). Dari direktori repository:
 
 ```bash
+./gradlew --version
 ./gradlew testDebugUnitTest
 ./gradlew connectedDebugAndroidTest
 ./gradlew assembleDebug
 ```
 
-`connectedDebugAndroidTest` memerlukan emulator atau perangkat Android yang terhubung. CI memisahkan job build dari job instrumentasi: unit test dan APK dapat tetap dihasilkan meskipun emulator bermasalah.
+`connectedDebugAndroidTest` memerlukan emulator atau perangkat Android yang terhubung. CI memisahkan build/unit test dari instrumentasi agar APK tetap dapat dibuat ketika emulator hosted runner bermasalah.
 
-Compose UI smoke test dijadwalkan pada emulator API 24, 35, dan 37. Sebelum instalasi test APK, CI menunggu tiga indikator kesiapan emulator: `sys.boot_completed=1`, PackageManager merespons `pm list packages`, dan Settings provider merespons `settings get system screen_brightness`. Emulator dibuat ulang dengan data bersih, 4 core CPU, RAM 4 GB, dan laporan instrumentasi diunggah meskipun job gagal.
+### Emulator pada CI
 
-Run #116 memperlihatkan dua kegagalan lingkungan emulator, bukan kegagalan kompilasi aplikasi: API 37 menolak instalasi saat Settings provider belum terdaftar; API 24 mengalami timeout perintah shell ketika PackageManager belum siap. API 35 melewati UI smoke test pada run yang sama. Perbaikan readiness tersebut sekarang ada di workflow; hasil run setelah perubahan ini masih harus diperiksa sebelum menyatakan matrix hijau.
+CI menggunakan AVD yang dibuat dan dijalankan langsung oleh `.github/scripts/run-emulator-tests.sh`, bukan wrapper action yang mengeksekusi setiap baris script secara terpisah dan menjalankan mutasi Settings setelah boot.
+
+Matrix emulator:
+- API 24: AOSP `default` x86_64.
+- API 35: Google APIs x86_64.
+- API 37.0: Google APIs 16 KB page-size x86_64.
+
+Script menginstal AVD dari system image yang dipatok oleh matrix, menunggu status ADB `device`, `sys.boot_completed=1`, dan PackageManager merespons, menjalankan `connectedDebugAndroidTest`, lalu menghentikan emulator melalui trap cleanup. Waktu boot maksimum 20 menit; setiap job instrumentasi memiliki timeout 60 menit. Log emulator disimpan di `RUNNER_TEMP` dan ditampilkan jika proses boot gagal.
+
+Run #134 (commit sebelum workflow mandiri ini) membuktikan Gradle Wrapper, unit test, dan build APK berhasil. UI matrix belum hijau: API 35 gagal karena script multiline dipecah menjadi perintah shell terpisah; API 37 mengalami ADB/Settings service yang tidak stabil setelah boot; API 24 mencapai timeout saat menunggu emulator. Workflow baru menghindari dua sumber masalah yang dapat dikendalikan tersebut, tetapi tetap harus lulus di run berikutnya sebelum kompatibilitas emulator dinyatakan terverifikasi.
 
 APK debug dihasilkan di:
 
@@ -87,7 +97,7 @@ APK debug dihasilkan di:
 app/build/outputs/apk/debug/app-debug.apk
 ```
 
-Gradle Wrapper mengunduh distribusi Gradle 9.5.0 resmi pada penggunaan pertama. Di Windows gunakan `gradlew.bat` sebagai pengganti `./gradlew`. Wrapper mengunci versi Gradle; JDK 17 dan Android SDK Platform 37.0 tetap harus tersedia.
+Gradle Wrapper mengunduh distribusi Gradle 9.5.0 resmi pada penggunaan pertama dan memverifikasi checksum. Di Windows gunakan `gradlew.bat` sebagai pengganti `./gradlew`. JDK 17 dan Android SDK Platform 37.0 tetap harus tersedia.
 
 ## Daftar uji perangkat
 
