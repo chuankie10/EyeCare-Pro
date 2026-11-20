@@ -33,8 +33,6 @@ if [ ! -x "$AVD_MANAGER" ] || [ ! -x "$EMULATOR" ]; then
     exit 2
 fi
 
-# Use explicit SDK home and AVD path so avdmanager and emulator resolve the
-# same profile even when GitHub Actions changes HOME for an individual action.
 printf 'no\n' | "$AVD_MANAGER" create avd \
     -n "$AVD_NAME" \
     -k "$IMAGE_PACKAGE" \
@@ -56,6 +54,7 @@ fi
     -no-boot-anim \
     -no-snapshot \
     -wipe-data \
+    -accel off \
     -gpu swiftshader_indirect \
     -memory 3072 \
     -cores 2 \
