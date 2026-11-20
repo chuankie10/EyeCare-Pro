@@ -12,7 +12,12 @@ IMAGE_PACKAGE="system-images;android-${IMAGE_API_LEVEL};${IMAGE_TARGET};x86_64"
 AVD_MANAGER="${ANDROID_SDK_ROOT}/cmdline-tools/latest/bin/avdmanager"
 EMULATOR="${ANDROID_SDK_ROOT}/emulator/emulator"
 EMULATOR_LOG="${RUNNER_TEMP:-/tmp}/eyecare-emulator-api-${API_LEVEL}.log"
+ANDROID_SDK_HOME="${ANDROID_SDK_HOME:-$HOME}"
+ANDROID_AVD_HOME="${ANDROID_AVD_HOME:-$ANDROID_SDK_HOME/.android/avd}"
 EMULATOR_PID=""
+
+export ANDROID_SDK_ROOT ANDROID_SDK_HOME ANDROID_AVD_HOME
+mkdir -p "$ANDROID_AVD_HOME"
 
 cleanup() {
     if [ -n "$EMULATOR_PID" ]; then
@@ -28,11 +33,21 @@ if [ ! -x "$AVD_MANAGER" ] || [ ! -x "$EMULATOR" ]; then
     exit 2
 fi
 
+# Use explicit SDK home and AVD path so avdmanager and emulator resolve the
+# same profile even when GitHub Actions changes HOME for an individual action.
 printf 'no\n' | "$AVD_MANAGER" create avd \
-    --name "$AVD_NAME" \
-    --package "$IMAGE_PACKAGE" \
-    --device pixel_2 \
-    --force
+    -n "$AVD_NAME" \
+    -k "$IMAGE_PACKAGE" \
+    -d pixel_2 \
+    -f \
+    -p "$ANDROID_AVD_HOME/$AVD_NAME.avd"
+
+if [ ! -f "$ANDROID_AVD_HOME/$AVD_NAME.ini" ]; then
+    echo "avdmanager did not create $ANDROID_AVD_HOME/$AVD_NAME.ini" >&2
+    "$AVD_MANAGER" list avd >&2 || true
+    find "$ANDROID_SDK_HOME/.android" -maxdepth 4 -name "$AVD_NAME.ini" -print >&2 2>/dev/null || true
+    exit 1
+fi
 
 "$EMULATOR" \
     -avd "$AVD_NAME" \
@@ -79,7 +94,6 @@ if [ "$ready" -ne 1 ]; then
     exit 1
 fi
 
-# Unlock when accepted; this is not part of the readiness gate.
 adb -s "$SERIAL" shell input keyevent 82 >/dev/null 2>&1 || true
 adb -s "$SERIAL" shell pm list packages | sed -n '1,5p'
 echo "Running connectedDebugAndroidTest on Android API ${API_LEVEL}."
