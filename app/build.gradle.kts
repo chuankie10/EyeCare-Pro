@@ -1,8 +1,10 @@
 plugins {
     id("com.android.application")
     // Kotlin compilation is provided by AGP 9 built-in Kotlin support.
-    id("org.jetbrains.kotlin.plugin.compose")
 }
+
+// Compose compiler plugin is supplied by the root buildscript classpath.
+apply(plugin = "org.jetbrains.kotlin.plugin.compose")
 
 android {
     namespace = "com.eyecare.pro"

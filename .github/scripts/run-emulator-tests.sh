@@ -17,6 +17,8 @@ ANDROID_AVD_HOME="${ANDROID_AVD_HOME:-$ANDROID_SDK_HOME/.android/avd}"
 EMULATOR_PID=""
 
 export ANDROID_SDK_ROOT ANDROID_SDK_HOME ANDROID_AVD_HOME
+# GitHub-hosted Linux runners do not expose /dev/kvm; opt in to emulator TCG.
+export ANDROID_I_WANT_MY_TCG=yes
 mkdir -p "$ANDROID_AVD_HOME"
 
 cleanup() {
@@ -65,7 +67,7 @@ EMULATOR_PID=$!
 
 ready=0
 attempt=0
-max_attempts=600
+max_attempts=900
 while [ "$attempt" -lt "$max_attempts" ]; do
     state="$(adb -s "$SERIAL" get-state 2>/dev/null || true)"
     if [ "$state" = "device" ]; then

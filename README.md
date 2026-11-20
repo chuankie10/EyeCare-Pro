@@ -63,7 +63,7 @@ Aplikasi hanya menghitung respons mentah. Skor tidak diubah menjadi kategori nor
 - AndroidX Test JUnit: 1.3.0
 - Espresso: 3.7.0
 
-AGP 9.3 mendukung compile API 37 dan memerlukan Gradle 9.5.0 serta JDK 17. Kotlin 2.4.21 didokumentasikan kompatibel penuh dengan Gradle sampai 9.7.0 dan AGP sampai 9.3.1. AGP 9 menggunakan built-in Kotlin, sehingga plugin `org.jetbrains.kotlin.android` dihapus; Compose tetap memakai plugin compiler yang versinya sama dengan Kotlin. Versi dependency dipatok untuk build yang dapat direproduksi, bukan klaim bahwa semuanya merupakan rilis terbaru.
+AGP 9.3 mendukung compile API 37 dan memerlukan Gradle 9.5.0 serta JDK 17. Kotlin 2.4.21 didokumentasikan kompatibel penuh dengan Gradle sampai 9.7.0 dan AGP sampai 9.3.1. AGP 9 menggunakan built-in Kotlin, sehingga plugin `org.jetbrains.kotlin.android` dihapus. Compose memakai plugin compiler yang versinya sama dengan Kotlin; marker plugin dipatok sebagai classpath dependency melalui Maven Central dan diterapkan pada modul app agar resolusinya tidak bergantung pada marker lookup Gradle Plugin Portal. Versi dependency dipatok untuk build yang dapat direproduksi, bukan klaim bahwa semuanya merupakan rilis terbaru.
 
 ## Build dan pengujian
 
@@ -87,7 +87,7 @@ Matrix emulator:
 - API 35: Google APIs x86_64.
 - API 37.0: Google APIs 16 KB page-size x86_64.
 
-Script menetapkan `ANDROID_SDK_HOME` dan `ANDROID_AVD_HOME` secara eksplisit, membuat AVD dengan path `.avd` yang eksplisit, memverifikasi berkas `.ini` hasil pembuatan, menunggu status ADB `device`, `sys.boot_completed=1`, dan PackageManager merespons, menjalankan `connectedDebugAndroidTest`, lalu menghentikan emulator melalui trap cleanup. Hosted runner yang tidak memberi akses ke `/dev/kvm` menjalankan emulator x86_64 dengan `-accel off`; ini lebih lambat daripada akselerasi hardware dan dibatasi 20 menit untuk boot. Waktu boot maksimum 20 menit; setiap job instrumentasi memiliki timeout 60 menit. Log emulator disimpan di `RUNNER_TEMP` dan ditampilkan jika proses boot gagal.
+Script menetapkan `ANDROID_SDK_HOME` dan `ANDROID_AVD_HOME` secara eksplisit, membuat AVD dengan path `.avd` yang eksplisit, memverifikasi berkas `.ini` hasil pembuatan, menunggu status ADB `device`, `sys.boot_completed=1`, dan PackageManager merespons, menjalankan `connectedDebugAndroidTest`, lalu menghentikan emulator melalui trap cleanup. Hosted runner yang tidak memberi akses ke `/dev/kvm` menjalankan emulator x86_64 dengan `ANDROID_I_WANT_MY_TCG=yes` dan `-accel off`; ini menggunakan TCG software emulation, lebih lambat daripada akselerasi hardware, dan dibatasi 30 menit untuk boot. Waktu boot maksimum 20 menit; setiap job instrumentasi memiliki timeout 60 menit. Log emulator disimpan di `RUNNER_TEMP` dan ditampilkan jika proses boot gagal.
 
 Run #134 (commit sebelum workflow mandiri ini) membuktikan Gradle Wrapper, unit test, dan build APK berhasil. UI matrix belum hijau: API 35 gagal karena script multiline dipecah menjadi perintah shell terpisah; API 37 mengalami ADB/Settings service yang tidak stabil setelah boot; API 24 mencapai timeout saat menunggu emulator. Workflow baru menghindari dua sumber masalah yang dapat dikendalikan tersebut, tetapi tetap harus lulus di run berikutnya sebelum kompatibilitas emulator dinyatakan terverifikasi.
 
