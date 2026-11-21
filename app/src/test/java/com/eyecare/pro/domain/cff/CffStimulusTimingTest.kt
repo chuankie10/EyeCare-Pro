@@ -72,6 +72,16 @@ class CffStimulusTimingTest {
         CffStimulusTiming.halfCycleNanos(Float.NaN)
     }
 
+    @Test(expected = IllegalArgumentException::class)
+    fun rejectsZeroDisplayRefreshRate() {
+        CffStimulusTiming.maxAlternatingFrequencyHz(0f)
+    }
+
+    @Test(expected = IllegalArgumentException::class)
+    fun rejectsNanDisplayRefreshRate() {
+        CffStimulusTiming.maxAlternatingFrequencyHz(Float.NaN)
+    }
+
     @Test(expected = IllegalArgumentException::class) fun rejectsInvalidDisplayRefreshRate() {
         CffStimulusTiming.maxAlternatingFrequencyHz(Float.POSITIVE_INFINITY)
     }

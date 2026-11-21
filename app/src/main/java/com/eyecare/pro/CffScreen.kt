@@ -43,20 +43,24 @@ private const val MAX_TRIAL_DURATION_MILLIS = 10_000L
 
 @Composable
 fun CffScreen(
-    displayRefreshRateHz: Float = 60f,
+    displayRefreshRateHz: Float = 0f,
     onResult: (com.eyecare.pro.domain.cff.CffObservation) -> Unit = {},
     viewModel: CffViewModel = viewModel()
 ) {
     val state by viewModel.uiState.collectAsState()
     val lifecycleOwner = LocalLifecycleOwner.current
-    val safeRefreshRate = displayRefreshRateHz.takeIf { it.isFinite() && it > 0f } ?: 60f
-    val maxFrequencyHz = remember(safeRefreshRate) {
-        CffStimulusTiming.maxAlternatingFrequencyHz(safeRefreshRate)
+    val reportedRefreshRate = displayRefreshRateHz.takeIf { it.isFinite() && it > 0f }
+    val maxFrequencyHz = remember(reportedRefreshRate) {
+        reportedRefreshRate?.let { CffStimulusTiming.maxAlternatingFrequencyHz(it) } ?: 0f
     }
-    val canRun = maxFrequencyHz >= 5f
+    val canRun = reportedRefreshRate != null && maxFrequencyHz >= 5f
 
     LaunchedEffect(maxFrequencyHz) {
-        viewModel.updateFrequencyLimit(maxFrequencyHz)
+        if (maxFrequencyHz > 0f) {
+            viewModel.updateFrequencyLimit(maxFrequencyHz)
+        } else {
+            viewModel.cancelSession()
+        }
     }
     DisposableEffect(lifecycleOwner, viewModel) {
         val observer = LifecycleEventObserver { _, event ->
@@ -130,11 +134,15 @@ fun CffScreen(
         )
         Text(
             "Refresh rate yang dilaporkan perangkat: " +
-                String.format(Locale.ROOT, "%.1f Hz", safeRefreshRate)
+                (reportedRefreshRate?.let { String.format(Locale.ROOT, "%.1f Hz", it) } ?: "tidak tersedia")
         )
         Text(
-            "Batas teoritis pergantian hitam-putih: " +
-                String.format(Locale.ROOT, "%.1f Hz", maxFrequencyHz)
+            if (reportedRefreshRate != null) {
+                "Batas teoritis pergantian hitam-putih: " +
+                    String.format(Locale.ROOT, "%.1f Hz", maxFrequencyHz)
+            } else {
+                "Batas teoritis pergantian hitam-putih: tidak dapat dihitung."
+            }
         )
         if (canRun) {
             Text(
@@ -149,6 +157,11 @@ fun CffScreen(
                     enabled = !state.isRunning && !state.awaitingObservation
                 )
             }
+        } else if (reportedRefreshRate == null) {
+            Text(
+                "Refresh rate perangkat tidak dapat dibaca; stimulasi dinonaktifkan.",
+                color = MaterialTheme.colorScheme.error
+            )
         } else {
             Text(
                 "Refresh rate perangkat terlalu rendah untuk rentang eksperimen ini.",
@@ -183,7 +196,7 @@ fun CffScreen(
             enabled = canRun && state.warningAcknowledged &&
                 state.noKnownPhotosensitivityRiskConfirmed && !state.isRunning &&
                 !state.awaitingObservation,
-            onClick = { viewModel.start(safeRefreshRate) }
+            onClick = { reportedRefreshRate?.let { viewModel.start(it) } }
         ) { Text("Mulai stimulasi") }
         OutlinedButton(
             enabled = state.isRunning,

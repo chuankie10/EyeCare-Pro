@@ -57,7 +57,7 @@ class MainActivity : ComponentActivity(), SensorEventListener {
     private var lightSensor: Sensor? = null
     private var currentLux by mutableStateOf<Float?>(null)
     private var sensorAvailable by mutableStateOf(true)
-    private var displayRefreshRateHz by mutableStateOf(60f)
+    private var displayRefreshRateHz by mutableStateOf(0f)
 
     private val displayListener = object : DisplayManager.DisplayListener {
         override fun onDisplayAdded(displayId: Int) = Unit
@@ -107,8 +107,9 @@ class MainActivity : ComponentActivity(), SensorEventListener {
     private fun updateDisplayRefreshRate() {
         val defaultDisplay = windowManager.defaultDisplay
         val reportedRate = displayManager.getDisplay(defaultDisplay.displayId)?.refreshRate
-            ?: defaultDisplay.refreshRate
-        displayRefreshRateHz = reportedRate.takeIf { it.isFinite() && it > 0f } ?: 60f
+            ?.takeIf { it.isFinite() && it > 0f }
+            ?: defaultDisplay.refreshRate.takeIf { it.isFinite() && it > 0f }
+        displayRefreshRateHz = reportedRate ?: 0f
     }
 
     override fun onSensorChanged(event: SensorEvent) {

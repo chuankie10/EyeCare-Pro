@@ -28,6 +28,7 @@ Aplikasi hanya menghitung respons mentah. Skor tidak diubah menjadi kategori nor
 ## CFF/FFF: batasan dan keselamatan
 
 - Target frekuensi adalah jadwal perangkat lunak, bukan pengukuran frekuensi cahaya fisik.
+- Jika perangkat tidak melaporkan refresh rate yang valid, stimulasi dinonaktifkan; aplikasi tidak mengasumsikan 60 Hz.
 - Satu siklus hitam-putih memerlukan setidaknya dua refresh; batas teoritis alternasi sekitar setengah refresh rate: 60 Hz → 30 Hz, 90 Hz → 45 Hz, 120 Hz → 60 Hz.
 - Frame terlewat, refresh rate adaptif, frame pacing Android, PWM, kecerahan, panel, mode hemat daya, dan beban sistem dapat mengubah stimulus aktual.
 - Sesi dibatasi maksimal 10 detik dan dibatalkan pada `ON_PAUSE` atau saat composable dilepas. Batas ini adalah pengamanan aplikasi, bukan protokol klinis tervalidasi.
@@ -80,16 +81,21 @@ Gunakan JDK 17, Android SDK Platform 37.0, dan Build Tools 36.0.0. Gradle 9.5.0 
 
 ### Emulator pada CI
 
-CI menggunakan AVD yang dibuat dan dijalankan langsung oleh `.github/scripts/run-emulator-tests.sh`, bukan wrapper action yang mengeksekusi setiap baris script secara terpisah dan menjalankan mutasi Settings setelah boot.
+CI memakai AVD x86_64 dengan akselerasi KVM pada runner Linux. Workflow memuat modul KVM generik dan modul vendor Intel/AMD, mengatur izin `/dev/kvm`, lalu memverifikasi `emulator -accel-check`. Jika runner tidak mengekspos KVM, job berhenti dengan diagnostik yang jelas; CI tidak diam-diam beralih ke TCG yang sebelumnya gagal boot secara tidak konsisten.
 
 Matrix emulator:
 - API 24: AOSP `default` x86_64.
 - API 35: Google APIs x86_64.
 - API 37.0: Google APIs 16 KB page-size x86_64.
 
-Script menetapkan `ANDROID_SDK_HOME` dan `ANDROID_AVD_HOME` secara eksplisit, membuat AVD dengan path `.avd` yang eksplisit, memverifikasi berkas `.ini` hasil pembuatan, menunggu status ADB `device`, `sys.boot_completed=1`, dan PackageManager merespons, menjalankan `connectedDebugAndroidTest`, lalu menghentikan emulator melalui trap cleanup. Hosted runner yang tidak memberi akses ke `/dev/kvm` menjalankan emulator x86_64 dengan `ANDROID_I_WANT_MY_TCG=yes` dan `-accel off`; ini menggunakan TCG software emulation, lebih lambat daripada akselerasi hardware, dan dibatasi 30 menit untuk boot. Waktu boot maksimum 20 menit; setiap job instrumentasi memiliki timeout 60 menit. Log emulator disimpan di `RUNNER_TEMP` dan ditampilkan jika proses boot gagal.
+Script `.github/scripts/run-emulator-tests.sh` membuat AVD dan mengatur `disk.dataPartition.size=4096MB` sebelum cold boot. Ruang data 4 GB disediakan karena APK debug sekitar 59 MB dan instalasi instrumented test memerlukan ruang tambahan untuk APK aplikasi, APK tes, serta library yang diekstrak. Setelah boot, script mencetak `df -h /data`, menunggu ADB `device`, `sys.boot_completed=1`, dan PackageManager merespons, lalu menjalankan `connectedDebugAndroidTest`.
 
-Run #134 (commit sebelum workflow mandiri ini) membuktikan Gradle Wrapper, unit test, dan build APK berhasil. UI matrix belum hijau: API 35 gagal karena script multiline dipecah menjadi perintah shell terpisah; API 37 mengalami ADB/Settings service yang tidak stabil setelah boot; API 24 mencapai timeout saat menunggu emulator. Workflow baru menghindari dua sumber masalah yang dapat dikendalikan tersebut, tetapi tetap harus lulus di run berikutnya sebelum kompatibilitas emulator dinyatakan terverifikasi.
+Run #148 (commit `6d846a2`) membuktikan:
+- Gradle Wrapper, unit test, dan build APK: lulus.
+- API 35 UI test: lulus.
+- API 24 dan API 37 UI test: gagal saat pemasangan APK karena ruang internal emulator tidak cukup / instalasi split APK tidak selesai. KVM sudah berhasil diaktifkan pada ketiga runner.
+- Perbaikan ukuran data partition menjadi 4 GB sedang divalidasi pada run berikutnya. Sampai hasil itu selesai, kompatibilitas emulator API 24 dan API 37 belum boleh dinyatakan lulus.
+
 
 APK debug dihasilkan di:
 
@@ -105,6 +111,7 @@ Gradle Wrapper mengunduh distribusi Gradle 9.5.0 resmi pada penggunaan pertama d
 2. Android 12/API 31 atau lebih baru: notifikasi, izin kamera, dan perilaku foreground/background.
 3. Android 17/API 37: instalasi, navigasi, rotasi, lifecycle, dan kompatibilitas runtime; target SDK tetap 36 pada build ini.
 4. Layar 60/90/120 Hz: refresh rate yang dilaporkan, batas teoritis CFF, mulai/henti, timeout 10 detik, dan pencatatan respons.
+5. Refresh rate tidak tersedia/invalid: tombol mulai CFF harus tetap nonaktif.
 5. Refresh rate adaptif dan mode hemat daya: pastikan sesi dihentikan bila batas baru tidak mendukung frekuensi yang sedang berjalan.
 6. Tekan Home, buka aplikasi lain, atau kunci layar saat CFF berjalan: pastikan stimulasi berhenti pada `ON_PAUSE` dan tidak berjalan kembali setelah resume.
 7. CFF: pastikan tombol mulai terkunci sampai peringatan dibaca dan konfirmasi tidak memiliki riwayat fotosensitivitas diberikan.

@@ -61,6 +61,20 @@ if [ ! -f "$ANDROID_AVD_HOME/$AVD_NAME.ini" ]; then
     exit 1
 fi
 
+# The debug APK is about 60 MB; keep enough internal data space for both
+# the app APK and the instrumented test APK on older/16 KB system images.
+AVD_CONFIG="$ANDROID_AVD_HOME/$AVD_NAME.avd/config.ini"
+if [ ! -f "$AVD_CONFIG" ]; then
+    echo "AVD config was not created: $AVD_CONFIG" >&2
+    exit 1
+fi
+if grep -q '^disk.dataPartition.size=' "$AVD_CONFIG"; then
+    sed -i 's/^disk.dataPartition.size=.*/disk.dataPartition.size=4096MB/' "$AVD_CONFIG"
+else
+    printf '\ndisk.dataPartition.size=4096MB\n' >> "$AVD_CONFIG"
+fi
+grep '^disk.dataPartition.size=' "$AVD_CONFIG"
+
 "$EMULATOR" \
     -avd "$AVD_NAME" \
     -port 5554 \
@@ -108,6 +122,7 @@ if [ "$ready" -ne 1 ]; then
     exit 1
 fi
 
+"$ADB" -s "$SERIAL" shell df -h /data
 "$ADB" -s "$SERIAL" shell input keyevent 82 >/dev/null 2>&1 || true
 "$ADB" -s "$SERIAL" shell pm list packages | sed -n '1,5p'
 echo "Running connectedDebugAndroidTest on Android API ${API_LEVEL}."
