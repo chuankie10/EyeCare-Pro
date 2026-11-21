@@ -62,20 +62,17 @@ jobs:
   instrumented:
     name: Compose UI tests on Android API ${{ matrix.api-level }}
     runs-on: ubuntu-24.04
-    timeout-minutes: 60
+    timeout-minutes: 45
     strategy:
       fail-fast: false
       matrix:
         include:
-          # AOSP image keeps the legacy API 24 emulator independent of old
-          # Google APIs packages that can stall on current hosted runners.
           - api-level: 24
             image-api-level: "24"
             image-target: default
           - api-level: 35
             image-api-level: "35"
             image-target: google_apis
-          # Android 17 16 KB page-size image also exercises bundled native libraries.
           - api-level: 37
             image-api-level: "37.0"
             image-target: google_apis_ps16k
@@ -85,7 +82,6 @@ jobs:
       API_LEVEL: ${{ matrix.api-level }}
       IMAGE_API_LEVEL: ${{ matrix.image-api-level }}
       IMAGE_TARGET: ${{ matrix.image-target }}
-      ANDROID_EMULATOR_WAIT_TIME_BEFORE_KILL: 60
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -107,12 +103,21 @@ jobs:
             "emulator" \
             "system-images;android-${IMAGE_API_LEVEL};${IMAGE_TARGET};x86_64"
 
+      - name: Enable KVM hardware acceleration
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+          test -c /dev/kvm
+          test -r /dev/kvm
+          test -w /dev/kvm
+          ls -l /dev/kvm
+          "$ANDROID_SDK_ROOT/emulator/emulator" -accel-check
+
       - name: Set up Gradle from the checked-in wrapper
         uses: gradle/actions/setup-gradle@v4
 
-      - name: Run Compose UI tests on managed emulator
-        # Keep this as one command. The emulator script itself contains the
-        # multi-line POSIX logic and owns emulator startup, readiness and cleanup.
+      - name: Run Compose UI tests on hardware-accelerated emulator
         run: sh .github/scripts/run-emulator-tests.sh
 
       - name: Upload instrumented test reports
