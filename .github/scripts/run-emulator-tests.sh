@@ -175,7 +175,7 @@ if grep -q 'FAILURES!!!' "$RESULT_LOG"; then
     echo "Android instrumentation reported test failures." >&2
     exit 1
 fi
-if ! grep -Eq 'OK \\([0-9]+ tests?\\)' "$RESULT_LOG"; then
+if ! grep -Eq 'OK \([0-9]+ tests?\)' "$RESULT_LOG"; then
     echo "AndroidJUnitRunner did not report a successful test summary." >&2
     exit 1
 fi
