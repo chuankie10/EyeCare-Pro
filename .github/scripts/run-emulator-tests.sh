@@ -13,6 +13,7 @@ AVD_MANAGER="${ANDROID_SDK_ROOT}/cmdline-tools/latest/bin/avdmanager"
 EMULATOR="${ANDROID_SDK_ROOT}/emulator/emulator"
 ADB="${ANDROID_SDK_ROOT}/platform-tools/adb"
 EMULATOR_LOG="${RUNNER_TEMP:-/tmp}/eyecare-emulator-api-${API_LEVEL}.log"
+APK_ARTIFACT_DIR="${APK_ARTIFACT_DIR:-artifacts}"
 ANDROID_SDK_HOME="${ANDROID_SDK_HOME:-$HOME}"
 ANDROID_AVD_HOME="${ANDROID_AVD_HOME:-$ANDROID_SDK_HOME/.android/avd}"
 EMULATOR_PID=""
@@ -141,5 +142,40 @@ echo "ActivityManager is ready for user $activity_user."
 "$ADB" -s "$SERIAL" shell df -h /data
 "$ADB" -s "$SERIAL" shell input keyevent 82 >/dev/null 2>&1 || true
 "$ADB" -s "$SERIAL" shell pm list packages | sed -n '1,5p'
-echo "Running connectedDebugAndroidTest on Android API ${API_LEVEL}."
-./gradlew --no-daemon connectedDebugAndroidTest
+
+APP_APK="$(find "$APK_ARTIFACT_DIR" -type f -name 'app-debug.apk' -print | head -n 1)"
+TEST_APK="$(find "$APK_ARTIFACT_DIR" -type f -name 'app-debug-androidTest.apk' -print | head -n 1)"
+if [ -z "$APP_APK" ] || [ -z "$TEST_APK" ]; then
+    echo "Prebuilt app or instrumentation APK is missing under $APK_ARTIFACT_DIR." >&2
+    find "$APK_ARTIFACT_DIR" -maxdepth 5 -type f -print >&2 || true
+    exit 1
+fi
+
+echo "Installing prebuilt application APK: $APP_APK"
+"$ADB" -s "$SERIAL" install -r "$APP_APK"
+echo "Installing prebuilt instrumentation APK: $TEST_APK"
+"$ADB" -s "$SERIAL" install -r "$TEST_APK"
+
+mkdir -p test-results
+RESULT_LOG="test-results/instrumentation-api-${API_LEVEL}.txt"
+echo "Running AndroidJUnitRunner on Android API ${API_LEVEL}."
+if "$ADB" -s "$SERIAL" shell am instrument -w -r \
+    com.eyecare.pro.test/androidx.test.runner.AndroidJUnitRunner >"$RESULT_LOG" 2>&1; then
+    instrumentation_exit=0
+else
+    instrumentation_exit=$?
+fi
+cat "$RESULT_LOG"
+
+if [ "$instrumentation_exit" -ne 0 ]; then
+    echo "AndroidJUnitRunner exited with status $instrumentation_exit." >&2
+    exit "$instrumentation_exit"
+fi
+if grep -q 'FAILURES!!!' "$RESULT_LOG"; then
+    echo "Android instrumentation reported test failures." >&2
+    exit 1
+fi
+if ! grep -Eq 'OK \\([0-9]+ tests?\\)' "$RESULT_LOG"; then
+    echo "AndroidJUnitRunner did not report a successful test summary." >&2
+    exit 1
+fi
