@@ -88,13 +88,14 @@ Matrix emulator:
 - API 35: Google APIs x86_64.
 - API 37.0: Google APIs 16 KB page-size x86_64.
 
-Script `.github/scripts/run-emulator-tests.sh` membuat AVD dan mengatur `disk.dataPartition.size=4096MB` sebelum cold boot. Ruang data 4 GB disediakan karena APK debug sekitar 59 MB dan instalasi instrumented test memerlukan ruang tambahan untuk APK aplikasi, APK tes, serta library yang diekstrak. Setelah boot, script mencetak `df -h /data`, menunggu ADB `device`, `sys.boot_completed=1`, dan PackageManager merespons, lalu menjalankan `connectedDebugAndroidTest`.
+Script `.github/scripts/run-emulator-tests.sh` membuat AVD dan mengatur `disk.dataPartition.size=4096MB` sebelum cold boot. Script menunggu ADB `device`, `sys.boot_completed=1`, PackageManager, dan ActivityManager (`am get-current-user`) siap. APK aplikasi dan APK instrumentasi sekarang dibangun sekali pada job build, diunggah sebagai artifact, lalu dipasang langsung melalui ADB pada setiap emulator. Matrix tidak lagi menjalankan Gradle atau mengunduh ulang dependency Kotlin/AGP pada tiga runner terpisah. Hasil AndroidJUnitRunner disimpan ke `test-results/instrumentation-api-<API>.txt`.
 
 Run #150 (commit `37f2d74`) membuktikan:
 - Gradle Wrapper, unit test, dan build APK: lulus; artifact debug APK berhasil diunggah.
-- API 35 UI test: satu test gagal karena `cffDisablesStimulusWhenRefreshRateCannotBeRead` memanggil `setContent` pada `MainActivity` yang sudah mengisi Compose content. Test tersebut dipindahkan ke `createComposeRule()` dengan Activity kosong.
-- API 24 dan API 37: instalasi APK tes gagal ketika `am get-current-user` / broadcast tidak dapat menemukan layanan `activity`, walaupun `sys.boot_completed=1` dan PackageManager sudah merespons. Script sekarang menunggu ActivityManager secara eksplisit sebelum Gradle memasang APK atau menjalankan test.
-- Perbaikan dua penyebab tersebut sedang divalidasi pada run berikutnya. API 24/35/37 belum boleh dinyatakan lulus sampai matrix baru hijau.
+- API 35 UI test: satu test gagal karena test memanggil `setContent` pada `MainActivity` yang sudah mengisi Compose content. Test tersebut dipindahkan ke `createComposeRule()` dengan Activity kosong.
+- API 24 dan API 37: ActivityManager belum siap saat pemasangan APK tes.
+- Run #154 membuktikan pemeriksaan ActivityManager kini berhasil dan partisi data emulator memiliki ruang kosong memadai (API 24: sekitar 5,8 GB tersedia). Namun, job API 24 gagal sebelum instrumentasi karena runner terpisah tidak dapat mengambil beberapa dependency buildscript Kotlin/ASM dari repository Maven. Build job utama tetap lulus.
+- Workflow baru menghilangkan resolver Gradle dari job emulator dengan memakai APK yang sudah dibangun di job utama. UI test belum boleh dinyatakan lulus sampai run setelah perubahan ini selesai.
 
 Run #148 (commit `6d846a2`) membuktikan:
 - Gradle Wrapper, unit test, dan build APK: lulus.
