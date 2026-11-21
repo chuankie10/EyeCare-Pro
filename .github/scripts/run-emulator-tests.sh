@@ -94,14 +94,23 @@ EMULATOR_PID=$!
 
 ready=0
 attempt=0
-max_attempts=300
+max_attempts=360
 while [ "$attempt" -lt "$max_attempts" ]; do
     state="$("$ADB" -s "$SERIAL" get-state 2>/dev/null || true)"
     if [ "$state" = "device" ]; then
         boot_completed="$("$ADB" -s "$SERIAL" shell getprop sys.boot_completed 2>/dev/null | tr -d '\r' || true)"
         if [ "$boot_completed" = "1" ] && "$ADB" -s "$SERIAL" shell pm list packages >/dev/null 2>&1; then
-            ready=1
-            break
+            # sys.boot_completed can be set before system_server has published
+            # ActivityManager. AndroidJUnitRunner/ddmlib invokes "am" during
+            # install and test cleanup, so wait for that service explicitly.
+            activity_user="$("$ADB" -s "$SERIAL" shell am get-current-user 2>/dev/null | tr -d '\r' || true)"
+            case "$activity_user" in
+                ''|*[!0-9]*) ;;
+                *)
+                    ready=1
+                    break
+                    ;;
+            esac
         fi
     fi
 
@@ -116,12 +125,19 @@ while [ "$attempt" -lt "$max_attempts" ]; do
 done
 
 if [ "$ready" -ne 1 ]; then
-    echo "Emulator did not become ready within $((max_attempts * 2)) seconds." >&2
+    echo "Emulator did not become fully ready within $((max_attempts * 2)) seconds." >&2
     "$ADB" devices -l >&2 || true
+    "$ADB" -s "$SERIAL" shell getprop sys.boot_completed >&2 || true
+    "$ADB" -s "$SERIAL" shell service check activity >&2 || true
+    "$ADB" -s "$SERIAL" shell service check package >&2 || true
+    "$ADB" -s "$SERIAL" shell am get-current-user >&2 || true
+    "$ADB" -s "$SERIAL" shell df -h /data >&2 || true
     tail -n 160 "$EMULATOR_LOG" >&2 || true
     exit 1
 fi
 
+echo "ActivityManager is ready for user $activity_user."
+"$ADB" -s "$SERIAL" shell service check activity
 "$ADB" -s "$SERIAL" shell df -h /data
 "$ADB" -s "$SERIAL" shell input keyevent 82 >/dev/null 2>&1 || true
 "$ADB" -s "$SERIAL" shell pm list packages | sed -n '1,5p'
