@@ -11,29 +11,41 @@ AVD_NAME="eyecare-api-${API_LEVEL}"
 IMAGE_PACKAGE="system-images;android-${IMAGE_API_LEVEL};${IMAGE_TARGET};x86_64"
 AVD_MANAGER="${ANDROID_SDK_ROOT}/cmdline-tools/latest/bin/avdmanager"
 EMULATOR="${ANDROID_SDK_ROOT}/emulator/emulator"
+ADB="${ANDROID_SDK_ROOT}/platform-tools/adb"
 EMULATOR_LOG="${RUNNER_TEMP:-/tmp}/eyecare-emulator-api-${API_LEVEL}.log"
 ANDROID_SDK_HOME="${ANDROID_SDK_HOME:-$HOME}"
 ANDROID_AVD_HOME="${ANDROID_AVD_HOME:-$ANDROID_SDK_HOME/.android/avd}"
 EMULATOR_PID=""
 
 export ANDROID_SDK_ROOT ANDROID_SDK_HOME ANDROID_AVD_HOME
-# GitHub-hosted Linux runners do not expose /dev/kvm; opt in to emulator TCG.
-export ANDROID_I_WANT_MY_TCG=yes
 mkdir -p "$ANDROID_AVD_HOME"
 
 cleanup() {
     if [ -n "$EMULATOR_PID" ]; then
-        adb -s "$SERIAL" emu kill >/dev/null 2>&1 || true
+        "$ADB" -s "$SERIAL" emu kill >/dev/null 2>&1 || true
         kill "$EMULATOR_PID" >/dev/null 2>&1 || true
         wait "$EMULATOR_PID" 2>/dev/null || true
     fi
 }
 trap cleanup EXIT HUP INT TERM
 
-if [ ! -x "$AVD_MANAGER" ] || [ ! -x "$EMULATOR" ]; then
-    echo "Android emulator tools are missing. Install cmdline-tools, emulator, and the selected system image first." >&2
+if [ ! -x "$AVD_MANAGER" ] || [ ! -x "$EMULATOR" ] || [ ! -x "$ADB" ]; then
+    echo "Android emulator tools are missing. Install cmdline-tools, emulator, platform-tools, and the selected system image first." >&2
     exit 2
 fi
+
+# Do not silently fall back to TCG: x86_64 Android images are too slow and
+# unreliable without KVM on hosted Linux runners.
+if [ ! -c /dev/kvm ] || [ ! -r /dev/kvm ] || [ ! -w /dev/kvm ]; then
+    echo "KVM is not available to this runner. Enable /dev/kvm permissions before starting the emulator." >&2
+    ls -l /dev/kvm >&2 2>/dev/null || true
+    exit 2
+fi
+"$EMULATOR" -accel-check
+
+# Start ADB before the emulator so the emulator can register with a ready daemon.
+"$ADB" kill-server >/dev/null 2>&1 || true
+"$ADB" start-server
 
 printf 'no\n' | "$AVD_MANAGER" create avd \
     -n "$AVD_NAME" \
@@ -51,12 +63,13 @@ fi
 
 "$EMULATOR" \
     -avd "$AVD_NAME" \
+    -port 5554 \
+    -accel on \
     -no-window \
     -no-audio \
     -no-boot-anim \
     -no-snapshot \
     -wipe-data \
-    -accel off \
     -gpu swiftshader_indirect \
     -memory 3072 \
     -cores 2 \
@@ -67,12 +80,12 @@ EMULATOR_PID=$!
 
 ready=0
 attempt=0
-max_attempts=900
+max_attempts=300
 while [ "$attempt" -lt "$max_attempts" ]; do
-    state="$(adb -s "$SERIAL" get-state 2>/dev/null || true)"
+    state="$("$ADB" -s "$SERIAL" get-state 2>/dev/null || true)"
     if [ "$state" = "device" ]; then
-        boot_completed="$(adb -s "$SERIAL" shell getprop sys.boot_completed 2>/dev/null | tr -d '\r' || true)"
-        if [ "$boot_completed" = "1" ] && adb -s "$SERIAL" shell pm list packages >/dev/null 2>&1; then
+        boot_completed="$("$ADB" -s "$SERIAL" shell getprop sys.boot_completed 2>/dev/null | tr -d '\r' || true)"
+        if [ "$boot_completed" = "1" ] && "$ADB" -s "$SERIAL" shell pm list packages >/dev/null 2>&1; then
             ready=1
             break
         fi
@@ -90,12 +103,12 @@ done
 
 if [ "$ready" -ne 1 ]; then
     echo "Emulator did not become ready within $((max_attempts * 2)) seconds." >&2
-    adb devices -l >&2 || true
+    "$ADB" devices -l >&2 || true
     tail -n 160 "$EMULATOR_LOG" >&2 || true
     exit 1
 fi
 
-adb -s "$SERIAL" shell input keyevent 82 >/dev/null 2>&1 || true
-adb -s "$SERIAL" shell pm list packages | sed -n '1,5p'
+"$ADB" -s "$SERIAL" shell input keyevent 82 >/dev/null 2>&1 || true
+"$ADB" -s "$SERIAL" shell pm list packages | sed -n '1,5p'
 echo "Running connectedDebugAndroidTest on Android API ${API_LEVEL}."
 ./gradlew --no-daemon connectedDebugAndroidTest
