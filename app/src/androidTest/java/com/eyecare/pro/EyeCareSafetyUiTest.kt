@@ -7,6 +7,7 @@ import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.assertIsOn
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
+import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
@@ -35,23 +36,6 @@ class EyeCareSafetyUiTest {
     }
 
     @Test
-    fun cffDisablesStimulusWhenRefreshRateCannotBeRead() {
-        composeRule.setContent {
-            MaterialTheme {
-                CffScreen(
-                    displayRefreshRateHz = 0f,
-                    viewModel = CffViewModel()
-                )
-            }
-        }
-
-        composeRule.onNodeWithText(
-            "Refresh rate perangkat tidak dapat dibaca; stimulasi dinonaktifkan."
-        ).assertIsDisplayed()
-        composeRule.onNodeWithText("Mulai stimulasi").assertIsNotEnabled()
-    }
-
-    @Test
     fun cffRequiresBothSafetyAcknowledgementsBeforeStart() {
         composeRule.onNodeWithText("Eksperimen kedip CFF/FFF")
             .performClick()
@@ -68,5 +52,33 @@ class EyeCareSafetyUiTest {
         riskConfirmation.performScrollTo().performClick()
         riskConfirmation.assertIsOn()
         startButton.performScrollTo().assertIsEnabled()
+    }
+}
+
+/**
+ * Uses an empty ComponentActivity supplied by createComposeRule. MainActivity sets its own
+ * content during onCreate, so a test that injects a synthetic refresh rate must not reuse
+ * createAndroidComposeRule<MainActivity>() and call setContent a second time.
+ */
+@RunWith(AndroidJUnit4::class)
+class CffUnavailableRefreshRateUiTest {
+    @get:Rule
+    val composeRule = createComposeRule()
+
+    @Test
+    fun cffDisablesStimulusWhenRefreshRateCannotBeRead() {
+        composeRule.setContent {
+            MaterialTheme {
+                CffScreen(
+                    displayRefreshRateHz = 0f,
+                    viewModel = CffViewModel()
+                )
+            }
+        }
+
+        composeRule.onNodeWithText(
+            "Refresh rate perangkat tidak dapat dibaca; stimulasi dinonaktifkan."
+        ).assertIsDisplayed()
+        composeRule.onNodeWithText("Mulai stimulasi").assertIsNotEnabled()
     }
 }
