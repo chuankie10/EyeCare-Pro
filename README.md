@@ -90,6 +90,12 @@ Matrix emulator:
 
 Script `.github/scripts/run-emulator-tests.sh` membuat AVD dan mengatur `disk.dataPartition.size=4096MB` sebelum cold boot. Ruang data 4 GB disediakan karena APK debug sekitar 59 MB dan instalasi instrumented test memerlukan ruang tambahan untuk APK aplikasi, APK tes, serta library yang diekstrak. Setelah boot, script mencetak `df -h /data`, menunggu ADB `device`, `sys.boot_completed=1`, dan PackageManager merespons, lalu menjalankan `connectedDebugAndroidTest`.
 
+Run #150 (commit `37f2d74`) membuktikan:
+- Gradle Wrapper, unit test, dan build APK: lulus; artifact debug APK berhasil diunggah.
+- API 35 UI test: satu test gagal karena `cffDisablesStimulusWhenRefreshRateCannotBeRead` memanggil `setContent` pada `MainActivity` yang sudah mengisi Compose content. Test tersebut dipindahkan ke `createComposeRule()` dengan Activity kosong.
+- API 24 dan API 37: instalasi APK tes gagal ketika `am get-current-user` / broadcast tidak dapat menemukan layanan `activity`, walaupun `sys.boot_completed=1` dan PackageManager sudah merespons. Script sekarang menunggu ActivityManager secara eksplisit sebelum Gradle memasang APK atau menjalankan test.
+- Perbaikan dua penyebab tersebut sedang divalidasi pada run berikutnya. API 24/35/37 belum boleh dinyatakan lulus sampai matrix baru hijau.
+
 Run #148 (commit `6d846a2`) membuktikan:
 - Gradle Wrapper, unit test, dan build APK: lulus.
 - API 35 UI test: lulus.
@@ -112,11 +118,11 @@ Gradle Wrapper mengunduh distribusi Gradle 9.5.0 resmi pada penggunaan pertama d
 3. Android 17/API 37: instalasi, navigasi, rotasi, lifecycle, dan kompatibilitas runtime; target SDK tetap 36 pada build ini.
 4. Layar 60/90/120 Hz: refresh rate yang dilaporkan, batas teoritis CFF, mulai/henti, timeout 10 detik, dan pencatatan respons.
 5. Refresh rate tidak tersedia/invalid: tombol mulai CFF harus tetap nonaktif.
-5. Refresh rate adaptif dan mode hemat daya: pastikan sesi dihentikan bila batas baru tidak mendukung frekuensi yang sedang berjalan.
-6. Tekan Home, buka aplikasi lain, atau kunci layar saat CFF berjalan: pastikan stimulasi berhenti pada `ON_PAUSE` dan tidak berjalan kembali setelah resume.
-7. CFF: pastikan tombol mulai terkunci sampai peringatan dibaca dan konfirmasi tidak memiliki riwayat fotosensitivitas diberikan.
-8. Ishihara: layar menyatakan materi belum tersedia dan tidak menampilkan pelat sintetis.
-9. Kamera/sensor/notifikasi: izin ditolak, perangkat tanpa sensor cahaya, kamera tidak tersedia, dan aplikasi kembali dari background.
-10. Aksesibilitas: ukuran teks besar, kontras, TalkBack, dan orientasi layar.
+6. Refresh rate adaptif dan mode hemat daya: pastikan sesi dihentikan bila batas baru tidak mendukung frekuensi yang sedang berjalan.
+7. Tekan Home, buka aplikasi lain, atau kunci layar saat CFF berjalan: pastikan stimulasi berhenti pada `ON_PAUSE` dan tidak berjalan kembali setelah resume.
+8. CFF: pastikan tombol mulai terkunci sampai peringatan dibaca dan konfirmasi tidak memiliki riwayat fotosensitivitas diberikan.
+9. Ishihara: layar menyatakan materi belum tersedia dan tidak menampilkan pelat sintetis.
+10. Kamera/sensor/notifikasi: izin ditolak, perangkat tanpa sensor cahaya, kamera tidak tersedia, dan aplikasi kembali dari background.
+11. Aksesibilitas: ukuran teks besar, kontras, TalkBack, dan orientasi layar.
 
 Pengujian pada perangkat fisik tetap wajib sebelum rilis.
