@@ -127,3 +127,21 @@ Gradle Wrapper mengunduh distribusi Gradle 9.5.0 resmi pada penggunaan pertama d
 11. Aksesibilitas: ukuran teks besar, kontras, TalkBack, dan orientasi layar.
 
 Pengujian pada perangkat fisik tetap wajib sebelum rilis.
+
+
+## Catatan validasi lanjutan — 22 November 2026
+
+Run #160 pada commit `f6c6b03` mengonfirmasi bahwa build, unit test, dan pembuatan kedua APK berhasil. Hasil instrumentasi yang dapat dibuktikan dari log:
+
+- Android API 35: **3/3 UI test lulus** (`OK (3 tests)`).
+- Android API 24: **3/3 UI test melaporkan lulus** (`OK (3 tests)` dan `INSTRUMENTATION_CODE: -1`), tetapi proses klien ADB tidak keluar setelah ringkasan akhir. Job akhirnya mencapai batas waktu 45 menit dan dibatalkan oleh runner; ini bukan kegagalan assertion, tetapi job belum dapat dinyatakan lulus.
+- Android API 37 / image 16 KB: emulator boot dan ActivityManager siap, tetapi PackageManager mengembalikan `Broken pipe (32)` saat query paket dan pemasangan APK. Belum ada hasil UI test API 37.
+
+Perbaikan berikutnya pada commit `98fa58e`:
+- Menunggu PackageManager lulus tiga query berturut-turut setelah ActivityManager siap.
+- Menghapus query daftar paket yang hanya dipakai untuk mencetak contoh dan dapat menutupi kegagalan service.
+- Mencoba ulang pemasangan sekali dengan `adb install --no-streaming` jika streaming install gagal.
+- Mengumpulkan status service, ruang data, logcat terkait PackageManager/system_server, dan log proses emulator saat gagal.
+- Membatasi proses `adb shell am instrument` menjadi 120 detik. Jika AndroidJUnitRunner telah mengirim `OK (N tests)` dan `INSTRUMENTATION_CODE: -1` tanpa `FAILURES!!!`, tetapi klien ADB tidak menutup, hasil assertion tetap dicatat lulus dengan peringatan. Tanpa ringkasan akhir tersebut, job tetap gagal.
+
+Perbaikan ini **belum dianggap tervalidasi** sampai run setelah commit `98fa58e` selesai. Kompatibilitas API 24/API 37 tetap belum dinyatakan lulus penuh. Pengujian perangkat fisik juga belum dilakukan.
