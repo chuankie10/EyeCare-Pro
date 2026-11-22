@@ -118,6 +118,14 @@ jobs:
           distribution: temurin
           java-version: '17'
 
+      - name: Validate Android command-line tools
+        run: |
+          SDKMANAGER="$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager"
+          AVDMANAGER="$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/avdmanager"
+          test -x "$SDKMANAGER"
+          test -x "$AVDMANAGER"
+          echo "Android command-line tools version: $("$SDKMANAGER" --version)"
+
       - name: Install Android emulator and system image
         run: |
           SDKMANAGER="$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager"
