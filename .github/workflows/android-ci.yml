@@ -23,6 +23,11 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7
 
+      - name: Validate CI shell scripts
+        run: |
+          sh -n .github/scripts/run-emulator-tests.sh
+          bash -n .github/scripts/check-16k-alignment.sh
+
       - name: Set up JDK 17
         uses: actions/setup-java@v6
         with:
@@ -50,6 +55,9 @@ jobs:
 
       - name: Build debug APK and instrumentation APK
         run: ./gradlew --no-daemon assembleDebug assembleDebugAndroidTest
+
+      - name: Verify 16 KB native library alignment
+        run: bash .github/scripts/check-16k-alignment.sh app/build/outputs/apk/debug/app-debug.apk
 
       - name: Verify 16 KB native library alignment
         run: bash .github/scripts/check-16k-alignment.sh app/build/outputs/apk/debug/app-debug.apk
@@ -156,6 +164,8 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: android-test-reports-api-${{ matrix.api-level }}
-          path: test-results/instrumentation-api-${{ matrix.api-level }}.txt
-          if-no-files-found: ignore
+          path: |
+            test-results/instrumentation-api-${{ matrix.api-level }}.txt
+            ${{ runner.temp }}/eyecare-emulator-api-${{ matrix.api-level }}.log
+          if-no-files-found: warn
           retention-days: 7
