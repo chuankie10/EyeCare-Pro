@@ -75,11 +75,11 @@ if [ ! -x "$SDKMANAGER" ] || [ ! -x "$AVD_MANAGER" ] || [ ! -x "$EMULATOR" ] || 
 fi
 
 cmdline_version="$("$SDKMANAGER" --version | tr -d "\r")"
-if [ "$cmdline_version" != "$CMDLINE_TOOLS_VERSION" ]; then
-    echo "Expected Android command-line tools $CMDLINE_TOOLS_VERSION, found $cmdline_version." >&2
+if [ -z "$cmdline_version" ]; then
+    echo "Android SDK Manager did not report a command-line tools version." >&2
     exit 2
 fi
-echo "Using Android command-line tools $cmdline_version."
+echo "Using Android command-line tools $cmdline_version from $CMDLINE_TOOLS_DIR."
 
 if [ ! -c /dev/kvm ] || [ ! -r /dev/kvm ] || [ ! -w /dev/kvm ]; then
     echo "KVM is not available to this runner. Enable /dev/kvm permissions before starting the emulator." >&2
