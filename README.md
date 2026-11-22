@@ -145,3 +145,19 @@ Perbaikan berikutnya pada commit `98fa58e`:
 - Membatasi proses `adb shell am instrument` menjadi 120 detik. Jika AndroidJUnitRunner telah mengirim `OK (N tests)` dan `INSTRUMENTATION_CODE: -1` tanpa `FAILURES!!!`, tetapi klien ADB tidak menutup, hasil assertion tetap dicatat lulus dengan peringatan. Tanpa ringkasan akhir tersebut, job tetap gagal.
 
 Perbaikan ini **belum dianggap tervalidasi** sampai run setelah commit `98fa58e` selesai. Kompatibilitas API 24/API 37 tetap belum dinyatakan lulus penuh. Pengujian perangkat fisik juga belum dilakukan.
+
+
+## Validasi CI dan 16 KB — 22 November 2026
+
+Run [#164](https://github.com/chuankie10/EyeCare-Pro/actions/runs/44992269509) selesai dengan hasil:
+- Unit test, build debug APK, dan build instrumentation APK: **lulus**.
+- Android API 24: **3/3 Compose UI tests lulus**. Pembatas 120 detik pada ADB menghindari job menggantung setelah ringkasan hasil.
+- Android API 35: **3/3 Compose UI tests lulus**.
+- Android API 37 pada image `google_apis_ps16k`: gagal sebelum APK dipasang. Log menunjukkan `surfaceflinger` abort (`SIGABRT`) di thread `RegionSampling`, lalu `system_server` mati. Ini kegagalan image emulator, bukan hasil uji aplikasi.
+
+Perubahan setelah run #164:
+- `.github/workflows/android-ci.yml` memakai image standar `google_apis` untuk pengujian OS Android API 37 agar uji antarmuka Android terbaru tidak bergantung pada image preview 16 KB yang crash.
+- `.github/scripts/check-16k-alignment.sh` menjalankan `zipalign -c -P 16 4` dan memeriksa ELF LOAD alignment pada pustaka `arm64-v8a` serta `x86_64`.
+- Pemeriksaan manual APK run #164 menemukan seluruh 64-bit ELF LOAD segments ber-alignment `0x4000` dan data offset pustaka native di dalam APK berada pada batas 16 KB. Ini pemeriksaan awal; skrip CI dan uji runtime 16 KB tetap diperlukan.
+
+Jangan menafsirkan pengujian API 37 standar sebagai bukti uji runtime pada kernel 16 KB. Pengujian perangkat fisik 16 KB dan perangkat fisik Android 7.0/versi baru tetap belum dilakukan.
