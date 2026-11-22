@@ -24,14 +24,50 @@ EMULATOR_PID=""
 export ANDROID_SDK_ROOT ANDROID_SDK_HOME ANDROID_AVD_HOME
 mkdir -p "$ANDROID_AVD_HOME"
 
+print_android_diagnostics() {
+    echo "----- Android service diagnostics -----" >&2
+    "$ADB" -s "$SERIAL" shell service check activity >&2 || true
+    "$ADB" -s "$SERIAL" shell service check package >&2 || true
+    "$ADB" -s "$SERIAL" shell pm list packages >&2 || true
+    "$ADB" -s "$SERIAL" shell df -h /data >&2 || true
+    "$ADB" -s "$SERIAL" logcat -d -b all -t 2500 2>/dev/null |
+        grep -Ei "PackageManager|system_server|SurfaceFlinger|RegionSampling|mapper.ranchu|ColorBufferDMA|FATAL EXCEPTION|Watchdog|Fatal signal|crash|No space left" |
+        tail -n 120 >&2 || true
+    echo "----- Emulator process log -----" >&2
+    tail -n 160 "$EMULATOR_LOG" >&2 || true
+}
+
+mkdir -p test-results
+RESULT_LOG="test-results/instrumentation-api-${API_LEVEL}.txt"
+: > "$RESULT_LOG"
+
 cleanup() {
+    saved_status=$?
+    trap - EXIT HUP INT TERM
+
     if [ -n "$EMULATOR_PID" ]; then
-        "$ADB" -s "$SERIAL" emu kill >/dev/null 2>&1 || true
-        kill "$EMULATOR_PID" >/dev/null 2>&1 || true
+        # Do not let emulator shutdown hold a matrix job until its 45-minute timeout.
+        timeout 8s "$ADB" -s "$SERIAL" emu kill >/dev/null 2>&1 || true
+        kill -TERM "$EMULATOR_PID" >/dev/null 2>&1 || true
+
+        stop_attempt=0
+        while kill -0 "$EMULATOR_PID" 2>/dev/null; do
+            if [ "$stop_attempt" -ge 8 ]; then
+                kill -KILL "$EMULATOR_PID" >/dev/null 2>&1 || true
+                break
+            fi
+            stop_attempt=$((stop_attempt + 1))
+            sleep 1
+        done
         wait "$EMULATOR_PID" 2>/dev/null || true
     fi
+
+    exit "$saved_status"
 }
-trap cleanup EXIT HUP INT TERM
+trap cleanup EXIT
+trap 'exit 129' HUP
+trap 'exit 130' INT
+trap 'exit 143' TERM
 
 if [ ! -x "$SDKMANAGER" ] || [ ! -x "$AVD_MANAGER" ] || [ ! -x "$EMULATOR" ] || [ ! -x "$ADB" ]; then
     echo "Android emulator tools are missing. Install cmdline-tools, emulator, platform-tools, and the selected system image first." >&2
@@ -184,44 +220,35 @@ echo "SurfaceFlinger remained stable across four consecutive samples."
 # before attempting APK installation; a single boot-complete signal is not enough.
 package_ready_count=0
 package_attempt=0
-while [ "$package_attempt" -lt 60 ]; do
-    package_service="$("$ADB" -s "$SERIAL" shell service check package 2>/dev/null | tr -d '\r' || true)"
-    package_probe="$("$ADB" -s "$SERIAL" shell pm list packages 2>/dev/null | tr -d '\r' || true)"
-    case "$package_service:$package_probe" in
-        *"found"*"package:"*)
-            package_ready_count=$((package_ready_count + 1))
-            ;;
-        *)
-            package_ready_count=0
-            echo "PackageManager is not stable yet (attempt $((package_attempt + 1))/60)." >&2
-            ;;
-    esac
+max_package_attempts=90
+while [ "$package_attempt" -lt "$max_package_attempts" ]; do
+    package_service="$("$ADB" -s "$SERIAL" shell service check package 2>&1 | tr -d '\r' || true)"
+    package_probe="$("$ADB" -s "$SERIAL" shell pm list packages 2>&1 | tr -d '\r' || true)"
+
+    if printf '%s\n' "$package_service" | grep -q 'Service package: found' &&
+        printf '%s\n' "$package_probe" | grep -q '^package:'; then
+        package_ready_count=$((package_ready_count + 1))
+    else
+        package_ready_count=0
+        echo "PackageManager is not stable yet (attempt $((package_attempt + 1))/$max_package_attempts)." >&2
+        printf '%s\n' "$package_service" | tail -n 2 >&2 || true
+        printf '%s\n' "$package_probe" | tail -n 2 >&2 || true
+    fi
+
     if [ "$package_ready_count" -ge 3 ]; then
         break
     fi
+
     package_attempt=$((package_attempt + 1))
     sleep 2
 done
-
-print_android_diagnostics() {
-    echo "----- Android service diagnostics -----" >&2
-    "$ADB" -s "$SERIAL" shell service check activity >&2 || true
-    "$ADB" -s "$SERIAL" shell service check package >&2 || true
-    "$ADB" -s "$SERIAL" shell pm list packages >&2 || true
-    "$ADB" -s "$SERIAL" shell df -h /data >&2 || true
-    "$ADB" -s "$SERIAL" logcat -d -b all -t 2500 2>/dev/null |
-        grep -Ei "PackageManager|system_server|SurfaceFlinger|RegionSampling|mapper.ranchu|ColorBufferDMA|FATAL EXCEPTION|Watchdog|Fatal signal|crash|No space left" |
-        tail -n 120 >&2 || true
-    echo "----- Emulator process log -----" >&2
-    tail -n 160 "$EMULATOR_LOG" >&2 || true
-}
 
 if [ "$package_ready_count" -lt 3 ]; then
     echo "PackageManager did not remain healthy for three consecutive probes." >&2
     print_android_diagnostics
     exit 1
 fi
-echo "PackageManager is stable after three consecutive package queries."
+echo "PackageManager remained healthy for three consecutive probes."
 
 APP_APK="$(find "$APK_ARTIFACT_DIR" -type f -name 'app-debug.apk' -print | head -n 1)"
 TEST_APK="$(find "$APK_ARTIFACT_DIR" -type f -name 'app-debug-androidTest.apk' -print | head -n 1)"
@@ -231,6 +258,27 @@ if [ -z "$APP_APK" ] || [ -z "$TEST_APK" ]; then
     exit 1
 fi
 
+wait_for_package_manager() {
+    retry_attempt=0
+    retry_stable_count=0
+    while [ "$retry_attempt" -lt 30 ]; do
+        retry_service="$("$ADB" -s "$SERIAL" shell service check package 2>&1 | tr -d '\r' || true)"
+        retry_probe="$("$ADB" -s "$SERIAL" shell pm list packages 2>&1 | tr -d '\r' || true)"
+        if printf '%s\n' "$retry_service" | grep -q 'Service package: found' &&
+            printf '%s\n' "$retry_probe" | grep -q '^package:'; then
+            retry_stable_count=$((retry_stable_count + 1))
+        else
+            retry_stable_count=0
+        fi
+        if [ "$retry_stable_count" -ge 2 ]; then
+            return 0
+        fi
+        retry_attempt=$((retry_attempt + 1))
+        sleep 2
+    done
+    return 1
+}
+
 install_apk() {
     apk_path="$1"
     echo "Installing APK: $apk_path"
@@ -238,8 +286,12 @@ install_apk() {
         return 0
     fi
 
-    echo "Streaming install failed; checking PackageManager before one non-streaming retry." >&2
-    "$ADB" -s "$SERIAL" shell service check package >&2 || true
+    echo "Streaming install failed; waiting for PackageManager recovery before a non-streaming retry." >&2
+    if ! wait_for_package_manager; then
+        echo "PackageManager did not recover after the first install attempt." >&2
+        print_android_diagnostics
+        return 1
+    fi
     if "$ADB" -s "$SERIAL" install --no-streaming -r "$apk_path"; then
         return 0
     fi
@@ -248,12 +300,9 @@ install_apk() {
     print_android_diagnostics
     return 1
 }
-
 install_apk "$APP_APK"
 install_apk "$TEST_APK"
 
-mkdir -p test-results
-RESULT_LOG="test-results/instrumentation-api-${API_LEVEL}.txt"
 echo "Running AndroidJUnitRunner on Android API ${API_LEVEL} (120-second hard timeout)."
 if timeout --signal=TERM --kill-after=5s 120s "$ADB" -s "$SERIAL" shell am instrument -w -r \
     com.eyecare.pro.test/androidx.test.runner.AndroidJUnitRunner >"$RESULT_LOG" 2>&1; then
