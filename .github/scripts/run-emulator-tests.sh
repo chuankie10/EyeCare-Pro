@@ -9,7 +9,10 @@ set -eu
 SERIAL="${ANDROID_SERIAL:-emulator-5554}"
 AVD_NAME="eyecare-api-${API_LEVEL}"
 IMAGE_PACKAGE="system-images;android-${IMAGE_API_LEVEL};${IMAGE_TARGET};x86_64"
-AVD_MANAGER="${ANDROID_SDK_ROOT}/cmdline-tools/latest/bin/avdmanager"
+CMDLINE_TOOLS_VERSION="${ANDROID_CMDLINE_TOOLS_VERSION:-22.0}"
+CMDLINE_TOOLS_DIR="${ANDROID_SDK_ROOT}/cmdline-tools/${CMDLINE_TOOLS_VERSION}"
+SDKMANAGER="${CMDLINE_TOOLS_DIR}/bin/sdkmanager"
+AVD_MANAGER="${CMDLINE_TOOLS_DIR}/bin/avdmanager"
 EMULATOR="${ANDROID_SDK_ROOT}/emulator/emulator"
 ADB="${ANDROID_SDK_ROOT}/platform-tools/adb"
 EMULATOR_LOG="${RUNNER_TEMP:-/tmp}/eyecare-emulator-api-${API_LEVEL}.log"
@@ -30,10 +33,17 @@ cleanup() {
 }
 trap cleanup EXIT HUP INT TERM
 
-if [ ! -x "$AVD_MANAGER" ] || [ ! -x "$EMULATOR" ] || [ ! -x "$ADB" ]; then
+if [ ! -x "$SDKMANAGER" ] || [ ! -x "$AVD_MANAGER" ] || [ ! -x "$EMULATOR" ] || [ ! -x "$ADB" ]; then
     echo "Android emulator tools are missing. Install cmdline-tools, emulator, platform-tools, and the selected system image first." >&2
     exit 2
 fi
+
+cmdline_version="$("$SDKMANAGER" --version | tr -d "\r")"
+if [ "$cmdline_version" != "$CMDLINE_TOOLS_VERSION" ]; then
+    echo "Expected Android command-line tools $CMDLINE_TOOLS_VERSION, found $cmdline_version." >&2
+    exit 2
+fi
+echo "Using Android command-line tools $cmdline_version."
 
 if [ ! -c /dev/kvm ] || [ ! -r /dev/kvm ] || [ ! -w /dev/kvm ]; then
     echo "KVM is not available to this runner. Enable /dev/kvm permissions before starting the emulator." >&2
@@ -58,6 +68,17 @@ if [ ! -f "$ANDROID_AVD_HOME/$AVD_NAME.ini" ]; then
     find "$ANDROID_SDK_HOME/.android" -maxdepth 4 -name "$AVD_NAME.ini" -print >&2 2>/dev/null || true
     exit 1
 fi
+
+AVD_METADATA="$ANDROID_AVD_HOME/$AVD_NAME.ini"
+EXPECTED_TARGET="android-${IMAGE_API_LEVEL}"
+ACTUAL_TARGET="$(sed -n "s/^target=//p" "$AVD_METADATA" | head -n 1)"
+if [ "$ACTUAL_TARGET" != "$EXPECTED_TARGET" ]; then
+    echo "Invalid AVD target: expected $EXPECTED_TARGET, found ${ACTUAL_TARGET:-<missing>}." >&2
+    cat "$AVD_METADATA" >&2 || true
+    echo "This usually means avdmanager is too old to parse Major.Minor Android image versions." >&2
+    exit 1
+fi
+echo "AVD metadata target verified: $ACTUAL_TARGET."
 
 AVD_CONFIG="$ANDROID_AVD_HOME/$AVD_NAME.avd/config.ini"
 if [ ! -f "$AVD_CONFIG" ]; then
@@ -133,6 +154,31 @@ echo "ActivityManager is ready for user $activity_user."
 "$ADB" -s "$SERIAL" shell service check activity
 "$ADB" -s "$SERIAL" shell df -h /data
 
+# SurfaceFlinger can restart after sys.boot_completed on malformed API 37 AVDs.
+surfaceflinger_previous=""
+surfaceflinger_stable_count=0
+surfaceflinger_attempt=0
+while [ "$surfaceflinger_attempt" -lt 15 ]; do
+    surfaceflinger_pid="$("$ADB" -s "$SERIAL" shell pidof surfaceflinger 2>/dev/null | tr -d "\r" || true)"
+    if [ -n "$surfaceflinger_pid" ] && [ "$surfaceflinger_pid" = "$surfaceflinger_previous" ]; then
+        surfaceflinger_stable_count=$((surfaceflinger_stable_count + 1))
+    else
+        surfaceflinger_stable_count=0
+    fi
+    if [ "$surfaceflinger_stable_count" -ge 3 ]; then
+        break
+    fi
+    surfaceflinger_previous="$surfaceflinger_pid"
+    surfaceflinger_attempt=$((surfaceflinger_attempt + 1))
+    sleep 2
+done
+if [ "$surfaceflinger_stable_count" -lt 3 ]; then
+    echo "SurfaceFlinger did not keep a stable PID after boot." >&2
+    print_android_diagnostics
+    exit 1
+fi
+echo "SurfaceFlinger remained stable across four consecutive samples."
+
 # PackageManager can lag behind ActivityManager on preview/16 KB images.
 # Require three consecutive successful service checks and real package queries
 # before attempting APK installation; a single boot-complete signal is not enough.
@@ -164,7 +210,7 @@ print_android_diagnostics() {
     "$ADB" -s "$SERIAL" shell pm list packages >&2 || true
     "$ADB" -s "$SERIAL" shell df -h /data >&2 || true
     "$ADB" -s "$SERIAL" logcat -d -b all -t 2500 2>/dev/null |
-        grep -Ei 'PackageManager|system_server|FATAL EXCEPTION|Watchdog|Fatal signal|crash|No space left' |
+        grep -Ei "PackageManager|system_server|SurfaceFlinger|RegionSampling|mapper.ranchu|ColorBufferDMA|FATAL EXCEPTION|Watchdog|Fatal signal|crash|No space left" |
         tail -n 120 >&2 || true
     echo "----- Emulator process log -----" >&2
     tail -n 160 "$EMULATOR_LOG" >&2 || true
