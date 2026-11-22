@@ -101,7 +101,7 @@ jobs:
       API_LEVEL: ${{ matrix.api-level }}
       IMAGE_API_LEVEL: ${{ matrix.image-api-level }}
       IMAGE_TARGET: ${{ matrix.image-target }}
-      ANDROID_CMDLINE_TOOLS_VERSION: "22.0"
+      ANDROID_CMDLINE_TOOLS_VERSION: "latest"
     steps:
       - name: Checkout
         uses: actions/checkout@v7
