@@ -51,6 +51,9 @@ jobs:
       - name: Build debug APK and instrumentation APK
         run: ./gradlew --no-daemon assembleDebug assembleDebugAndroidTest
 
+      - name: Verify 16 KB native library alignment
+        run: bash .github/scripts/check-16k-alignment.sh app/build/outputs/apk/debug/app-debug.apk
+
       - name: Upload debug APK
         uses: actions/upload-artifact@v4
         with:
@@ -86,7 +89,7 @@ jobs:
             image-target: google_apis
           - api-level: 37
             image-api-level: "37.0"
-            image-target: google_apis_ps16k
+            image-target: google_apis
     env:
       ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
       ANDROID_SERIAL: emulator-5554
