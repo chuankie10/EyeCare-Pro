@@ -26,6 +26,9 @@ jobs:
       - name: Validate CI shell scripts
         run: |
           sh -n .github/scripts/run-emulator-tests.sh
+          sh -n .github/scripts/verify-avd-metadata.sh
+          sh -n .github/scripts/test-avd-metadata.sh
+          sh .github/scripts/test-avd-metadata.sh
           bash -n .github/scripts/check-16k-alignment.sh
 
       - name: Set up JDK 17
