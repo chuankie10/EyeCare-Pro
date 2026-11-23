@@ -161,3 +161,10 @@ Perubahan setelah run #164:
 - Pemeriksaan manual APK run #164 menemukan seluruh 64-bit ELF LOAD segments ber-alignment `0x4000` dan data offset pustaka native di dalam APK berada pada batas 16 KB. Ini pemeriksaan awal; skrip CI dan uji runtime 16 KB tetap diperlukan.
 
 Jangan menafsirkan pengujian API 37 standar sebagai bukti uji runtime pada kernel 16 KB. Pengujian perangkat fisik 16 KB dan perangkat fisik Android 7.0/versi baru tetap belum dilakukan.
+
+
+## Catatan validasi emulator CI
+
+- Android command-line tools 12.0 dapat menulis `target=android-0` pada metadata AVD untuk system image Android 37.0. CI hanya menerima kasus tersebut bila `image.sysdir.1` pada `config.ini` cocok persis dengan direktori image `android-37.0/google_apis_ps16k/x86_64`; API atau image lain tetap ditolak.
+- Instalasi APK pada API 24 memakai jalur ADB non-streaming terlebih dahulu, lalu mencoba streaming sebagai fallback. Setiap percobaan dibatasi 180 detik agar runner tidak menggantung sampai batas job.
+- Regresi metadata AVD diuji oleh `.github/scripts/test-avd-metadata.sh` sebelum matrix emulator berjalan.
