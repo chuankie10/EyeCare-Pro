@@ -1,6 +1,8 @@
 #!/bin/sh
 set -eu
 
+SCRIPT_DIR=$(CDPATH= cd "$(dirname "$0")" && pwd)
+
 : "${ANDROID_SDK_ROOT:=/usr/local/lib/android/sdk}"
 : "${API_LEVEL:?API_LEVEL is required}"
 : "${IMAGE_API_LEVEL:?IMAGE_API_LEVEL is required}"
@@ -106,21 +108,20 @@ if [ ! -f "$ANDROID_AVD_HOME/$AVD_NAME.ini" ]; then
 fi
 
 AVD_METADATA="$ANDROID_AVD_HOME/$AVD_NAME.ini"
-EXPECTED_TARGET="android-${IMAGE_API_LEVEL}"
-ACTUAL_TARGET="$(sed -n "s/^target=//p" "$AVD_METADATA" | head -n 1)"
-if [ "$ACTUAL_TARGET" != "$EXPECTED_TARGET" ]; then
-    echo "Invalid AVD target: expected $EXPECTED_TARGET, found ${ACTUAL_TARGET:-<missing>}." >&2
-    cat "$AVD_METADATA" >&2 || true
-    echo "This usually means avdmanager is too old to parse Major.Minor Android image versions." >&2
-    exit 1
-fi
-echo "AVD metadata target verified: $ACTUAL_TARGET."
-
 AVD_CONFIG="$ANDROID_AVD_HOME/$AVD_NAME.avd/config.ini"
 if [ ! -f "$AVD_CONFIG" ]; then
     echo "AVD config was not created: $AVD_CONFIG" >&2
     exit 1
 fi
+
+EXPECTED_TARGET="android-${IMAGE_API_LEVEL}"
+EXPECTED_IMAGE_SYS_DIR="system-images/android-${IMAGE_API_LEVEL}/${IMAGE_TARGET}/x86_64/"
+sh "$SCRIPT_DIR/verify-avd-metadata.sh" \
+    "$AVD_METADATA" \
+    "$AVD_CONFIG" \
+    "$EXPECTED_TARGET" \
+    "$EXPECTED_IMAGE_SYS_DIR"
+
 if grep -q '^disk.dataPartition.size=' "$AVD_CONFIG"; then
     sed -i 's/^disk.dataPartition.size=.*/disk.dataPartition.size=4096MB/' "$AVD_CONFIG"
 else
@@ -279,24 +280,51 @@ wait_for_package_manager() {
     return 1
 }
 
+run_apk_install() {
+    install_mode="$1"
+    if [ -n "$install_mode" ]; then
+        timeout --signal=TERM --kill-after=10s 180s \
+            "$ADB" -s "$SERIAL" install "$install_mode" -r "$apk_path"
+    else
+        timeout --signal=TERM --kill-after=10s 180s \
+            "$ADB" -s "$SERIAL" install -r "$apk_path"
+    fi
+}
+
 install_apk() {
     apk_path="$1"
-    echo "Installing APK: $apk_path"
-    if "$ADB" -s "$SERIAL" install -r "$apk_path"; then
-        return 0
+    echo "Installing APK with a 180-second hard timeout: $apk_path"
+
+    # Older Android 7 package installers are more reliable with the legacy
+    # push-then-pm-install path. Newer APIs keep streaming as the first attempt.
+    if [ "$API_LEVEL" -le 25 ]; then
+        first_install_mode="--no-streaming"
+        second_install_mode=""
+    else
+        first_install_mode=""
+        second_install_mode="--no-streaming"
     fi
 
-    echo "Streaming install failed; waiting for PackageManager recovery before a non-streaming retry." >&2
+    if run_apk_install "$first_install_mode"; then
+        return 0
+    else
+        first_install_status=$?
+    fi
+
+    echo "First APK install attempt failed (exit $first_install_status); checking PackageManager before one bounded fallback." >&2
     if ! wait_for_package_manager; then
         echo "PackageManager did not recover after the first install attempt." >&2
         print_android_diagnostics
         return 1
     fi
-    if "$ADB" -s "$SERIAL" install --no-streaming -r "$apk_path"; then
+
+    if run_apk_install "$second_install_mode"; then
         return 0
+    else
+        second_install_status=$?
     fi
 
-    echo "APK installation failed after streaming and non-streaming attempts." >&2
+    echo "APK installation failed after both bounded attempts (exit codes $first_install_status and $second_install_status)." >&2
     print_android_diagnostics
     return 1
 }
