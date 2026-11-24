@@ -39,6 +39,16 @@ print_android_diagnostics() {
     tail -n 160 "$EMULATOR_LOG" >&2 || true
 }
 
+collect_instrumentation_diagnostics() {
+    echo "Collecting full logcat and DropBox records after instrumentation failure." >&2
+    timeout --signal=TERM --kill-after=5s 30s "$ADB" -s "$SERIAL" logcat -b all -d -v threadtime >"$LOGCAT_LOG" 2>&1 || true
+    timeout --signal=TERM --kill-after=5s 30s "$ADB" -s "$SERIAL" shell dumpsys dropbox --print >"$DROPBOX_LOG" 2>&1 || true
+    echo "----- Relevant logcat failures -----" >&2
+    grep -Ei "FATAL EXCEPTION|Fatal signal|system_server|Watchdog|INSTRUMENTATION_ABORTED|am_crash|am_anr|Process .* has died|tombstone|native crash" "$LOGCAT_LOG" | tail -n 240 >&2 || true
+    echo "----- DropBox crash/ANR markers -----" >&2
+    grep -Ei "system_server|system_app_crash|system_app_anr|system_server_crash|system_server_anr|native_crash|watchdog" "$DROPBOX_LOG" | tail -n 160 >&2 || true
+}
+
 mkdir -p test-results
 RESULT_LOG="test-results/instrumentation-api-${API_LEVEL}.txt"
 LOGCAT_LOG="test-results/logcat-api-${API_LEVEL}.txt"
