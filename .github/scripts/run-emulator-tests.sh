@@ -41,6 +41,8 @@ print_android_diagnostics() {
 
 mkdir -p test-results
 RESULT_LOG="test-results/instrumentation-api-${API_LEVEL}.txt"
+LOGCAT_LOG="test-results/logcat-api-${API_LEVEL}.txt"
+DROPBOX_LOG="test-results/dropbox-api-${API_LEVEL}.txt"
 : > "$RESULT_LOG"
 
 cleanup() {
@@ -343,12 +345,15 @@ cat "$RESULT_LOG"
 if grep -q 'FAILURES!!!' "$RESULT_LOG" ||
     grep -q 'INSTRUMENTATION_FAILED' "$RESULT_LOG" ||
     grep -q 'INSTRUMENTATION_ABORTED' "$RESULT_LOG"; then
-    echo "Android instrumentation reported test failures." >&2
+    echo "Android instrumentation reported test failures or the Android runtime aborted." >&2
+    collect_instrumentation_diagnostics
+    print_android_diagnostics
     exit 1
 fi
 if ! grep -Eq 'OK \([0-9]+ tests?\)' "$RESULT_LOG" ||
     ! grep -q 'INSTRUMENTATION_CODE: -1' "$RESULT_LOG"; then
     echo "AndroidJUnitRunner did not report a complete successful test summary (exit $instrumentation_exit)." >&2
+    collect_instrumentation_diagnostics
     print_android_diagnostics
     exit 1
 fi
