@@ -7,7 +7,6 @@ import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.assertIsOn
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
-import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
@@ -56,14 +55,15 @@ class EyeCareSafetyUiTest {
 }
 
 /**
- * Uses an empty ComponentActivity supplied by createComposeRule. MainActivity sets its own
- * content during onCreate, so a test that injects a synthetic refresh rate must not reuse
- * createAndroidComposeRule<MainActivity>() and call setContent a second time.
+ * Uses a dedicated, manifest-registered test Activity rather than relying on the
+ * implicit ComponentActivity host supplied by createComposeRule. Recent Android
+ * test runners resolve that implicit host inside the instrumentation package;
+ * without a manifest entry, ActivityScenario cannot launch it.
  */
 @RunWith(AndroidJUnit4::class)
 class CffUnavailableRefreshRateUiTest {
     @get:Rule
-    val composeRule = createComposeRule()
+    val composeRule = createAndroidComposeRule<ComposeTestActivity>()
 
     @Test
     fun cffDisablesStimulusWhenRefreshRateCannotBeRead() {
