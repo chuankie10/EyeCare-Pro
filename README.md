@@ -168,3 +168,19 @@ Jangan menafsirkan pengujian API 37 standar sebagai bukti uji runtime pada kerne
 - Android command-line tools 12.0 dapat menulis `target=android-0` pada metadata AVD untuk system image Android 37.0. CI hanya menerima kasus tersebut bila `image.sysdir.1` pada `config.ini` cocok persis dengan direktori image `android-37.0/google_apis_ps16k/x86_64`; API atau image lain tetap ditolak.
 - Instalasi APK pada API 24 memakai jalur ADB non-streaming terlebih dahulu, lalu mencoba streaming sebagai fallback. Setiap percobaan dibatasi 180 detik agar runner tidak menggantung sampai batas job.
 - Regresi metadata AVD diuji oleh `.github/scripts/test-avd-metadata.sh` sebelum matrix emulator berjalan.
+
+
+## Validasi CI dan perbaikan host Compose test — 25 November 2026
+
+Run [#202](https://github.com/chuankie10/EyeCare-Pro/actions/runs/45343617775) menyelesaikan:
+- Unit test, build debug APK, build instrumentation APK, dan pemeriksaan alignment native awal: **lulus**.
+- Android API 24: **3/3 Compose UI tests lulus**.
+- Android API 35: **3/3 Compose UI tests lulus**.
+- Android API 37: gagal pada setup Activity untuk satu UI test. Log menunjukkan ActivityScenario tidak dapat menemukan androidx.activity.ComponentActivity di instrumentation APK (Unable to resolve activity ... com.eyecare.pro.test/androidx.activity.ComponentActivity). Ini bukan bukti crash aplikasi atau kegagalan assertion CFF.
+
+Perbaikan pada 25 November:
+- Tambahkan ComposeTestActivity khusus pada source set androidTest.
+- Daftarkan Activity tersebut dalam app/src/androidTest/AndroidManifest.xml.
+- Ubah CffUnavailableRefreshRateUiTest untuk memakai createAndroidComposeRule<ComposeTestActivity>() sehingga host test eksplisit dan terdaftar.
+
+Perbaikan sedang divalidasi pada [run #207](https://github.com/chuankie10/EyeCare-Pro/actions/runs/45563375191). API 37 belum boleh dinyatakan lulus sampai run ini menyelesaikan instrumentasi. Pengujian perangkat fisik dan runtime pada perangkat 16 KB tetap belum dilakukan.
