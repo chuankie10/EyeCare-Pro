@@ -41,7 +41,7 @@ jobs:
         env:
           ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
         run: |
-          SDKMANAGER="$ANDROID_SDK_ROOT/cmdline-tools/22.0/bin/sdkmanager"
+          SDKMANAGER="$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager"
           yes | "$SDKMANAGER" --licenses >/dev/null
           "$SDKMANAGER" --install "platforms;android-37.0" "build-tools;36.0.0" "platform-tools"
 
@@ -123,7 +123,7 @@ jobs:
 
       - name: Install and pin Android command-line tools 22.0
         run: |
-          BOOTSTRAP_SDKMANAGER="$ANDROID_SDK_ROOT/cmdline-tools/22.0/bin/sdkmanager"
+          BOOTSTRAP_SDKMANAGER="$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager"
           test -x "$BOOTSTRAP_SDKMANAGER"
           yes | "$BOOTSTRAP_SDKMANAGER" --install "cmdline-tools;22.0"
           SDKMANAGER="$ANDROID_SDK_ROOT/cmdline-tools/22.0/bin/sdkmanager"
