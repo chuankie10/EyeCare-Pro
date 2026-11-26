@@ -11,7 +11,7 @@ SCRIPT_DIR=$(CDPATH= cd "$(dirname "$0")" && pwd)
 SERIAL="${ANDROID_SERIAL:-emulator-5554}"
 AVD_NAME="eyecare-api-${API_LEVEL}"
 IMAGE_PACKAGE="system-images;android-${IMAGE_API_LEVEL};${IMAGE_TARGET};x86_64"
-CMDLINE_TOOLS_VERSION="${ANDROID_CMDLINE_TOOLS_VERSION:-latest}"
+CMDLINE_TOOLS_VERSION="${ANDROID_CMDLINE_TOOLS_VERSION:-22.0}"
 CMDLINE_TOOLS_DIR="${ANDROID_SDK_ROOT}/cmdline-tools/${CMDLINE_TOOLS_VERSION}"
 SDKMANAGER="${CMDLINE_TOOLS_DIR}/bin/sdkmanager"
 AVD_MANAGER="${CMDLINE_TOOLS_DIR}/bin/avdmanager"
@@ -150,7 +150,7 @@ grep '^disk.dataPartition.size=' "$AVD_CONFIG"
     -no-boot-anim \
     -no-snapshot \
     -wipe-data \
-    -gpu swiftshader_indirect \
+    -gpu software \
     -memory 3072 \
     -cores 2 \
     -camera-back none \
@@ -262,6 +262,16 @@ if [ "$package_ready_count" -lt 3 ]; then
     exit 1
 fi
 echo "PackageManager remained healthy for three consecutive probes."
+
+if [ "$API_LEVEL" -ge 37 ] && [ "$IMAGE_TARGET" = "google_apis_ps16k" ]; then
+    actual_page_size="$("$ADB" -s "$SERIAL" shell getconf PAGE_SIZE 2>/dev/null | tr -d '\r' || true)"
+    if [ "$actual_page_size" != "16384" ]; then
+        echo "Expected a 16 KB guest page size (16384), got ${actual_page_size:-<empty>}." >&2
+        print_android_diagnostics
+        exit 1
+    fi
+    echo "Verified Android guest page size: $actual_page_size bytes."
+fi
 
 APP_APK="$(find "$APK_ARTIFACT_DIR" -type f -name 'app-debug.apk' -print | head -n 1)"
 TEST_APK="$(find "$APK_ARTIFACT_DIR" -type f -name 'app-debug-androidTest.apk' -print | head -n 1)"
