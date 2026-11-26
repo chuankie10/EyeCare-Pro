@@ -41,7 +41,7 @@ jobs:
         env:
           ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
         run: |
-          SDKMANAGER="$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager"
+          SDKMANAGER="$ANDROID_SDK_ROOT/cmdline-tools/22.0/bin/sdkmanager"
           yes | "$SDKMANAGER" --licenses >/dev/null
           "$SDKMANAGER" --install "platforms;android-37.0" "build-tools;36.0.0" "platform-tools"
 
@@ -104,7 +104,7 @@ jobs:
       API_LEVEL: ${{ matrix.api-level }}
       IMAGE_API_LEVEL: ${{ matrix.image-api-level }}
       IMAGE_TARGET: ${{ matrix.image-target }}
-      ANDROID_CMDLINE_TOOLS_VERSION: "latest"
+      ANDROID_CMDLINE_TOOLS_VERSION: "22.0"
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -121,17 +121,19 @@ jobs:
           distribution: temurin
           java-version: '17'
 
-      - name: Validate Android command-line tools
+      - name: Install and pin Android command-line tools 22.0
         run: |
-          SDKMANAGER="$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager"
-          AVDMANAGER="$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/avdmanager"
+          BOOTSTRAP_SDKMANAGER="$ANDROID_SDK_ROOT/cmdline-tools/22.0/bin/sdkmanager"
+          test -x "$BOOTSTRAP_SDKMANAGER"
+          yes | "$BOOTSTRAP_SDKMANAGER" --install "cmdline-tools;22.0"
+          SDKMANAGER="$ANDROID_SDK_ROOT/cmdline-tools/22.0/bin/sdkmanager"
+          AVDMANAGER="$ANDROID_SDK_ROOT/cmdline-tools/22.0/bin/avdmanager"
           test -x "$SDKMANAGER"
           test -x "$AVDMANAGER"
-          echo "Android command-line tools version: $("$SDKMANAGER" --version)"
-
+          echo "Pinned Android command-line tools version: $("$SDKMANAGER" --version)"
       - name: Install Android emulator and system image
         run: |
-          SDKMANAGER="$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager"
+          SDKMANAGER="$ANDROID_SDK_ROOT/cmdline-tools/22.0/bin/sdkmanager"
           yes | "$SDKMANAGER" --licenses >/dev/null
           "$SDKMANAGER" --install \
             "platforms;android-37.0" \
