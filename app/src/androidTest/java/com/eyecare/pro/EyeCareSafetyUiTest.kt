@@ -55,10 +55,9 @@ class EyeCareSafetyUiTest {
 }
 
 /**
- * Uses a dedicated, manifest-registered test Activity rather than relying on the
- * implicit ComponentActivity host supplied by createComposeRule. Recent Android
- * test runners resolve that implicit host inside the instrumentation package;
- * without a manifest entry, ActivityScenario cannot launch it.
+ * Launches the app's manifest-declared MainActivity so ActivityScenario stays in
+ * the target application process on API 24, 35, and 37. The test then replaces
+ * the Activity's content with a deterministic CFF state.
  */
 @RunWith(AndroidJUnit4::class)
 class CffUnavailableRefreshRateUiTest {
