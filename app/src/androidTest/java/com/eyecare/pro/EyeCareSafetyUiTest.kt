@@ -63,7 +63,7 @@ class EyeCareSafetyUiTest {
 @RunWith(AndroidJUnit4::class)
 class CffUnavailableRefreshRateUiTest {
     @get:Rule
-    val composeRule = createAndroidComposeRule<ComposeTestActivity>()
+    val composeRule = createAndroidComposeRule<MainActivity>()
 
     @Test
     fun cffDisablesStimulusWhenRefreshRateCannotBeRead() {
