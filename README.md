@@ -165,7 +165,7 @@ Jangan menafsirkan pengujian API 37 standar sebagai bukti uji runtime pada kerne
 
 ## Catatan validasi emulator CI
 
-- Android command-line tools 12.0 dapat menulis `target=android-0` pada metadata AVD untuk system image Android 37.0. CI hanya menerima kasus tersebut bila `image.sysdir.1` pada `config.ini` cocok persis dengan direktori image `android-37.0/google_apis_ps16k/x86_64`; API atau image lain tetap ditolak.
+- Runner Ubuntu 24.04 membawa Android command-line tools 12.0, yang salah mem-parsing package `android-37.0` dan menulis `target=android-0`. CI kini memasang serta mematok command-line tools 22.0 sebelum membuat AVD; metadata harus tepat `target=android-37.0` dan `image.sysdir.1` harus cocok dengan `system-images/android-37.0/google_apis_ps16k/x86_64/`. Placeholder `android-0` selalu ditolak.
 - Instalasi APK pada API 24 memakai jalur ADB non-streaming terlebih dahulu, lalu mencoba streaming sebagai fallback. Setiap percobaan dibatasi 180 detik agar runner tidak menggantung sampai batas job.
 - Regresi metadata AVD diuji oleh `.github/scripts/test-avd-metadata.sh` sebelum matrix emulator berjalan.
 
@@ -179,8 +179,17 @@ Run [#202](https://github.com/chuankie10/EyeCare-Pro/actions/runs/45343617775) m
 - Android API 37: gagal pada setup Activity untuk satu UI test. Log menunjukkan ActivityScenario tidak dapat menemukan androidx.activity.ComponentActivity di instrumentation APK (Unable to resolve activity ... com.eyecare.pro.test/androidx.activity.ComponentActivity). Ini bukan bukti crash aplikasi atau kegagalan assertion CFF.
 
 Perbaikan pada 25 November:
-- Tambahkan ComposeTestActivity khusus pada source set androidTest.
-- Daftarkan Activity tersebut dalam app/src/androidTest/AndroidManifest.xml.
-- Ubah CffUnavailableRefreshRateUiTest untuk memakai createAndroidComposeRule<ComposeTestActivity>() sehingga host test eksplisit dan terdaftar.
+- Percobaan menambahkan `ComposeTestActivity` hanya pada APK `androidTest` ternyata keliru: Activity berada di proses/package instrumentation, sedangkan `ActivityScenario` dijalankan dari proses aplikasi target. Run #209 menunjukkan `Intent in process com.eyecare.pro resolved to different process com.eyecare.pro.test`. Perbaikan berikutnya memakai `MainActivity` yang memang terdaftar pada APK aplikasi sebagai host untuk seluruh Compose UI tests.
+- Run #209 juga menunjukkan API 37 memulai AVD dengan `target=android-0`; logcat merekam `SurfaceFlinger` SIGABRT di `RegionSampling` dengan assertion `!rcEnc->featureInfo()->hasReadColorBufferDma`. Ini konsisten dengan masalah parsing AVD oleh command-line tools 12.0, bukan assertion fitur aplikasi.
 
-Perbaikan sedang divalidasi pada [run #207](https://github.com/chuankie10/EyeCare-Pro/actions/runs/45563375191). API 37 belum boleh dinyatakan lulus sampai run ini menyelesaikan instrumentasi. Pengujian perangkat fisik dan runtime pada perangkat 16 KB tetap belum dilakukan.
+Perbaikan lanjutan: pin command-line tools 22.0, menolak `android-0`, memverifikasi `getconf PAGE_SIZE == 16384` pada image API 37 16 KB, dan memakai Activity target-app untuk test host. Validasi ulang belum selesai; API 37 dan pengujian perangkat fisik/16 KB tetap belum boleh dinyatakan lulus.
+
+
+## Follow-up CI — 26 November 2026
+
+Run [#209](https://github.com/chuankie10/EyeCare-Pro/actions/runs/45563506528) membuktikan job build, unit test, build APK aplikasi/instrumentasi, dan pre-check alignment 16 KB lulus. Instrumentasi belum lulus:
+- API 24 dan API 35: dua UI tests lulus; tes CFF dengan `ComposeTestActivity` gagal karena Activity di APK instrumentation berjalan pada proses berbeda dari aplikasi target.
+- API 37: AndroidJUnitRunner terputus setelah SurfaceFlinger mengalami SIGABRT di thread RegionSampling. Log menunjukkan assertion `!rcEnc->featureInfo()->hasReadColorBufferDma`; AVD dibuat dengan `target=android-0` oleh command-line tools 12.0.
+- Perbaikan sekarang menghapus Activity khusus test, menggunakan `MainActivity` sebagai host, mematok command-line tools 22.0, menolak target `android-0`, dan memverifikasi page size 16 KB sebelum test berjalan.
+
+Command-line tools 22.0 dipilih karena issue runner-images mendokumentasikan bahwa versi 20.0/22.0 menulis target `android-37.0`, sedangkan versi 12.0 menulis `android-0` untuk paket minor-version. Lihat [runner-images #14484](https://github.com/actions/runner-images/issues/14484). Pengujian runtime API 37 harus tetap dianggap pending sampai run baru menyelesaikan seluruh UI tests.
