@@ -193,3 +193,18 @@ Run [#209](https://github.com/chuankie10/EyeCare-Pro/actions/runs/45563506528) m
 - Perbaikan sekarang menghapus Activity khusus test, menggunakan `MainActivity` sebagai host, mematok command-line tools 22.0, menolak target `android-0`, dan memverifikasi page size 16 KB sebelum test berjalan.
 
 Command-line tools 22.0 dipilih karena issue runner-images mendokumentasikan bahwa versi 20.0/22.0 menulis target `android-37.0`, sedangkan versi 12.0 menulis `android-0` untuk paket minor-version. Lihat [runner-images #14484](https://github.com/actions/runner-images/issues/14484). Pengujian runtime API 37 harus tetap dianggap pending sampai run baru menyelesaikan seluruh UI tests.
+
+## Investigasi CI — run #223 dan perbaikan Compose host — 27 November 2026
+
+Run [#223](https://github.com/chuankie10/EyeCare-Pro/actions/runs/45770805396) membuktikan:
+- Unit test, `assembleDebug`, `assembleDebugAndroidTest`, upload artifact, dan pemeriksaan alignment 16 KB awal: **lulus**.
+- Ketiga emulator API 24, 35, dan 37 berhasil boot, memasang APK, serta menjalankan AndroidJUnitRunner.
+- Dua UI test lulus pada setiap API. Satu UI test gagal pada ketiganya dengan exception yang sama: `MainActivity has already set content`, saat `CffUnavailableRefreshRateUiTest` memanggil `setContent` melalui `createAndroidComposeRule<MainActivity>()`. Ini kegagalan setup test, bukan kegagalan runtime CFF atau crash SurfaceFlinger.
+- API 37 melewati boot dan instrumentasi; log run #223 tidak menunjukkan kegagalan karena target AVD `android-0`. Image yang dipakai adalah `google_apis_ps16k`; pemeriksaan page size runtime perlu dikonfirmasi dari log langkah script pada run berikutnya sebelum klaim runtime 16 KB.
+
+Perbaikan pada commit `b900bb6`:
+- Test navigasi/konfirmasi yang benar-benar menguji aplikasi tetap memakai `createAndroidComposeRule<MainActivity>()`.
+- Test terisolasi yang menyuntikkan `displayRefreshRateHz = 0f` kini memakai `createComposeRule()`, sehingga Compose test host dapat menerima `setContent` tanpa menimpa content milik `MainActivity`.
+- Tidak ada perubahan kode produksi, dependency Gradle, target SDK, atau materi tes medis.
+
+Run CI setelah commit ini harus mengonfirmasi ketiga API menghasilkan `OK (3 tests)`. Sampai run tersebut selesai, hasil instrumentasi API 24/35/37 masih berstatus belum lulus. Pemeriksaan alignment APK bukan pengganti uji runtime pada perangkat 16 KB; pengujian perangkat fisik tetap wajib.
