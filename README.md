@@ -200,7 +200,7 @@ Run [#223](https://github.com/chuankie10/EyeCare-Pro/actions/runs/45770805396) m
 - Unit test, `assembleDebug`, `assembleDebugAndroidTest`, upload artifact, dan pemeriksaan alignment 16 KB awal: **lulus**.
 - Ketiga emulator API 24, 35, dan 37 berhasil boot, memasang APK, serta menjalankan AndroidJUnitRunner.
 - Dua UI test lulus pada setiap API. Satu UI test gagal pada ketiganya dengan exception yang sama: `MainActivity has already set content`, saat `CffUnavailableRefreshRateUiTest` memanggil `setContent` melalui `createAndroidComposeRule<MainActivity>()`. Ini kegagalan setup test, bukan kegagalan runtime CFF atau crash SurfaceFlinger.
-- API 37 melewati boot dan instrumentasi; log run #223 tidak menunjukkan kegagalan karena target AVD `android-0`. Image yang dipakai adalah `google_apis_ps16k`; pemeriksaan page size runtime perlu dikonfirmasi dari log langkah script pada run berikutnya sebelum klaim runtime 16 KB.
+- API 37 melewati boot dan instrumentasi; log run #223 tidak menunjukkan kegagalan karena target AVD `android-0`. Image yang dipakai adalah `google_apis_ps16k`, dan log job secara eksplisit mengonfirmasi `Verified Android guest page size: 16384 bytes`. Kegagalan run #223 tetap berasal dari test host Compose yang memanggil `setContent` pada `MainActivity` yang sudah memiliki content.
 
 Perbaikan pada commit `b900bb6`:
 - Test navigasi/konfirmasi yang benar-benar menguji aplikasi tetap memakai `createAndroidComposeRule<MainActivity>()`.
@@ -208,3 +208,23 @@ Perbaikan pada commit `b900bb6`:
 - Tidak ada perubahan kode produksi, dependency Gradle, target SDK, atau materi tes medis.
 
 Run CI setelah commit ini harus mengonfirmasi ketiga API menghasilkan `OK (3 tests)`. Sampai run tersebut selesai, hasil instrumentasi API 24/35/37 masih berstatus belum lulus. Pemeriksaan alignment APK bukan pengganti uji runtime pada perangkat 16 KB; pengujian perangkat fisik tetap wajib.
+
+## Validasi CI — perbaikan host Compose terkonfirmasi — 27 November 2026
+
+Run [#227](https://github.com/chuankie10/EyeCare-Pro/actions/runs/45954620658), commit `6df68b1`, selesai **success**:
+- Unit test Kotlin: lulus.
+- `assembleDebug` dan `assembleDebugAndroidTest`: lulus.
+- Pemeriksaan alignment native 16 KB pada APK: lulus.
+- Android API 24: `OK (3 tests)`, `INSTRUMENTATION_CODE: -1`.
+- Android API 35: `OK (3 tests)`, `INSTRUMENTATION_CODE: -1`.
+- Android API 37 / image `google_apis_ps16k`: guest page size terverifikasi `16384` byte dan `OK (3 tests)`, `INSTRUMENTATION_CODE: -1`.
+
+Perbaikan yang diuji adalah memisahkan host UI test: navigasi aplikasi tetap memakai `createAndroidComposeRule<MainActivity>()`, sedangkan tes deterministik yang menyuntikkan refresh rate `0f` memakai `createComposeRule()` agar tidak memanggil `setContent` kedua kali pada `MainActivity`. Tidak ada perubahan kode produksi pada commit ini. Keberhasilan emulator bukan bukti uji perangkat fisik; API 37 diuji dengan target SDK aplikasi 36, bukan target 37.
+
+## Tinjauan sumber materi Ishihara — 27 November 2026
+
+- Wellcome Collection menyediakan salinan arsip *Tests for colour-blindness* (Shinobu Ishihara, edisi revisi lengkap ke-12, 1957) dengan lisensi CC BY-NC 4.0. Lisensi tersebut mensyaratkan atribusi dan membatasi penggunaan yang terutama ditujukan untuk keuntungan komersial: https://wellcomecollection.org/works/xkf4mb2s.
+- Artikel open-access 2023 membahas prosedur cetak khusus pada pelat Ishihara resmi dan perubahan warna akibat penuaan: https://doi.org/10.1002/col.22877. Pemindaian arsip yang legal tidak otomatis memvalidasi reproduksi pada layar ponsel.
+- Lisensi PWA Fonlow memberi izin atas software, tetapi secara eksplisit mengecualikan materi pihak ketiga dari pemberian lisensinya; karena itu lisensi PWA saja tidak membuktikan semua gambar pelat dapat didistribusikan ulang.
+
+Keputusan: tidak ada gambar arsip atau PWA pihak ketiga yang disalin ke APK. Dataset produksi Ishihara tetap terkunci sampai hak distribusi untuk setiap aset, edisi dan kunci jawaban yang cocok, serta validasi penyajian layar yang relevan ditinjau. Tidak ada pola sintetis yang dipakai sebagai pengganti.
