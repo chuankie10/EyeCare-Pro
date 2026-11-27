@@ -7,6 +7,7 @@ import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.assertIsOn
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
+import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
@@ -55,14 +56,14 @@ class EyeCareSafetyUiTest {
 }
 
 /**
- * Launches the app's manifest-declared MainActivity so ActivityScenario stays in
- * the target application process on API 24, 35, and 37. The test then replaces
- * the Activity's content with a deterministic CFF state.
+ * This test renders CffScreen in the Compose test host instead of MainActivity.
+ * MainActivity owns its own setContent call, so calling setContent on a rule
+ * backed by MainActivity throws "has already set content" on every API level.
  */
 @RunWith(AndroidJUnit4::class)
 class CffUnavailableRefreshRateUiTest {
     @get:Rule
-    val composeRule = createAndroidComposeRule<MainActivity>()
+    val composeRule = createComposeRule()
 
     @Test
     fun cffDisablesStimulusWhenRefreshRateCannotBeRead() {
