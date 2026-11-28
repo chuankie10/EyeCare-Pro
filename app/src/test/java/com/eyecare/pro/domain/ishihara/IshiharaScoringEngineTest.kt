@@ -88,4 +88,41 @@ class IshiharaScoringEngineTest {
     @Test(expected = IllegalArgumentException::class) fun rejectsEmptyDataset() {
         IshiharaScoringEngine.score(emptyList(), emptyMap())
     }
+
+    @Test
+    fun explicitUnsureResponseStillCountsAsRecordedResponse() {
+        val score = IshiharaScoringEngine.score(
+            plates,
+            mapOf(
+                "p1" to IshiharaScoringEngine.UNSURE_ANSWER,
+                "p2" to "8",
+                "p3" to "6"
+            )
+        )
+
+        assertEquals(IshiharaResponseCompleteness.COMPLETE, score.responseCompleteness)
+        assertEquals(0, score.unansweredQuestions)
+    }
+
+    @Test
+    fun skippedPlateMakesResponseRecordIncomplete() {
+        val score = IshiharaScoringEngine.score(
+            plates,
+            mapOf("p1" to "12", "p2" to "8")
+        )
+
+        assertEquals(IshiharaResponseCompleteness.INCOMPLETE, score.responseCompleteness)
+        assertEquals(1, score.unansweredQuestions)
+    }
+
+    @Test(expected = IllegalArgumentException::class)
+    fun scoreRejectsInconsistentResponseTotals() {
+        IshiharaScore(
+            correctAnswers = 1,
+            incorrectAnswers = 0,
+            unsureAnswers = 0,
+            unansweredQuestions = 0,
+            totalQuestions = 2
+        )
+    }
 }

@@ -48,8 +48,16 @@ data class IshiharaDataset(
     }
 }
 
+enum class IshiharaResponseCompleteness {
+    COMPLETE,
+    INCOMPLETE
+}
+
 /**
  * Raw response summary only. No normal/abnormal or diagnostic classification is derived.
+ *
+ * COMPLETE means every plate has a recorded response, including an explicit unsure response.
+ * A skipped plate is counted as unanswered and makes the record INCOMPLETE.
  */
 data class IshiharaScore(
     val correctAnswers: Int,
@@ -58,8 +66,28 @@ data class IshiharaScore(
     val unansweredQuestions: Int,
     val totalQuestions: Int
 ) {
+    init {
+        require(totalQuestions > 0) { "Total pelat harus lebih dari nol." }
+        require(
+            correctAnswers >= 0 &&
+                incorrectAnswers >= 0 &&
+                unsureAnswers >= 0 &&
+                unansweredQuestions >= 0
+        ) { "Jumlah respons tidak boleh negatif." }
+        require(
+            correctAnswers + incorrectAnswers + unsureAnswers + unansweredQuestions == totalQuestions
+        ) { "Jumlah kategori respons harus sama dengan total pelat." }
+    }
+
     val answeredQuestions: Int
         get() = correctAnswers + incorrectAnswers + unsureAnswers
+
+    val responseCompleteness: IshiharaResponseCompleteness
+        get() = if (unansweredQuestions == 0) {
+            IshiharaResponseCompleteness.COMPLETE
+        } else {
+            IshiharaResponseCompleteness.INCOMPLETE
+        }
 }
 
 object IshiharaScoringEngine {

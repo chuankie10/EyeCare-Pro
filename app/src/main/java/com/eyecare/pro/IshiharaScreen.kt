@@ -21,6 +21,7 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import com.eyecare.pro.domain.ishihara.IshiharaResponseCompleteness
 import com.eyecare.pro.domain.ishihara.IshiharaScoringEngine
 import com.eyecare.pro.presentation.ishihara.IshiharaUiState
 import com.eyecare.pro.presentation.ishihara.IshiharaViewModel
@@ -125,8 +126,16 @@ fun IshiharaScreen(viewModel: IshiharaViewModel) {
             }
 
             is IshiharaUiState.Completed -> {
+                val completenessMessage = when (current.score.responseCompleteness) {
+                    IshiharaResponseCompleteness.COMPLETE ->
+                        "Lengkap: setiap pelat memiliki respons, termasuk pilihan tidak tahu."
+                    IshiharaResponseCompleteness.INCOMPLETE ->
+                        "Parsial: ada pelat yang dilewati tanpa respons."
+                }
+
                 Text("Sesi selesai", style = MaterialTheme.typography.titleLarge)
                 Text("Sumber materi: ${current.sourceTitle}")
+                Text("Status kelengkapan respons: ${completenessMessage}")
                 Text("Jawaban benar: ${current.score.correctAnswers}")
                 Text("Jawaban salah: ${current.score.incorrectAnswers}")
                 Text("Jawaban ragu-ragu: ${current.score.unsureAnswers}")
